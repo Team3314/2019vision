@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/viz.dir/vision.cpp.o"
+  "CMakeFiles/viz.dir/cap_gstreamer.cpp.o"
   "viz.pdb"
   "viz"
 )

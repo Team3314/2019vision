@@ -123,6 +123,33 @@ viz/fast:
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/build
 .PHONY : viz/fast
 
+cap_gstreamer.o: cap_gstreamer.cpp.o
+
+.PHONY : cap_gstreamer.o
+
+# target to build an object file
+cap_gstreamer.cpp.o:
+	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.o
+.PHONY : cap_gstreamer.cpp.o
+
+cap_gstreamer.i: cap_gstreamer.cpp.i
+
+.PHONY : cap_gstreamer.i
+
+# target to preprocess a source file
+cap_gstreamer.cpp.i:
+	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.i
+.PHONY : cap_gstreamer.cpp.i
+
+cap_gstreamer.s: cap_gstreamer.cpp.s
+
+.PHONY : cap_gstreamer.s
+
+# target to generate assembly for a file
+cap_gstreamer.cpp.s:
+	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.s
+.PHONY : cap_gstreamer.cpp.s
+
 vision.o: vision.cpp.o
 
 .PHONY : vision.o
@@ -159,6 +186,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... viz"
+	@echo "... cap_gstreamer.o"
+	@echo "... cap_gstreamer.i"
+	@echo "... cap_gstreamer.s"
 	@echo "... vision.o"
 	@echo "... vision.i"
 	@echo "... vision.s"
