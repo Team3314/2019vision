@@ -229,6 +229,10 @@ opencv2/highgui/highgui_tegra.hpp
 /3314/src/opencv2/highgui/highgui_tegra.hpp
 
 /3314/src/vision.cpp
+vision.hpp
+/3314/src/vision.hpp
+
+/3314/src/vision.hpp
 opencv2/imgproc/imgproc.hpp
 -
 opencv2/highgui/highgui.hpp

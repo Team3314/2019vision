@@ -233,6 +233,7 @@ CMakeFiles/viz.dir/vision.cpp.o: ../cap_gstreamer.hpp
 CMakeFiles/viz.dir/vision.cpp.o: ../cvconfig.h
 CMakeFiles/viz.dir/vision.cpp.o: ../precomp.hpp
 CMakeFiles/viz.dir/vision.cpp.o: ../vision.cpp
+CMakeFiles/viz.dir/vision.cpp.o: ../vision.hpp
 CMakeFiles/viz.dir/vision.cpp.o: /usr/include/glib-2.0/glib-object.h
 CMakeFiles/viz.dir/vision.cpp.o: /usr/include/glib-2.0/glib.h
 CMakeFiles/viz.dir/vision.cpp.o: /usr/include/glib-2.0/glib/deprecated/gallocator.h

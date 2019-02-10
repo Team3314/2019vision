@@ -8,7 +8,7 @@ find_package(OpenCV REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS} "/3314/ntcore/include/" "/3314/ntcore/wpiutil/include/" "/usr/include/gstreamer-1.0/" "/usr/include/glib-2.0/" "/usr/lib/aarch64-linux-gnu/glib-2.0/include/" "/usr/lib/aarch64-linux-gnu/gstreamer-1.0/include/")
 
-add_executable (viz vision.cpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
+add_executable (viz vision.cpp vision.hpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
 
 find_library(LibNT ntcore "/3314/ntcore/")
 

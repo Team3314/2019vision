@@ -1,31 +1,22 @@
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/core/core.hpp>
-#include <iostream>
-#include <cstdlib>
-
-#include <networktables/NetworkTable.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "cap_gstreamer.hpp"
+#include "vision.hpp"
 
 //TODO
 //Hinting at other targets by pulling from net tables []
-//Single target tracking []
+//Single target tracking [x]
 //Streaming [x]
 //GUI to fix thresholding []
-//Run scripts automatically []
-//Constants []
+//Run scripts automatically [x]
+//Constants [x]
+//Confidence levels []
 
-static double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
+/*static double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
 {
 	double dx1 = pt1.x - pt0.x;
 	double dy1 = pt1.y - pt0.y;
 	double dx2 = pt2.x - pt0.x;
 	double dy2 = pt2.y - pt0.y;
 	return (dx1 * dx2 + dy1 * dy2) / sqrt((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 * dy2) + 1e-10);
-}
+}*/
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -48,33 +39,33 @@ std::string create_write_pipeline(int width, int height, int framerate,
 	return pipstring;
 }
 
+void flash_good_settings(int device)
+{
+	char setting_script[100];
+	sprintf(setting_script, "/3314/src/good_settings.sh %d", device);
+	system(setting_script);
+}
+
+void flash_bad_settings(int device)
+{
+	char setting_script[100];
+	sprintf(setting_script, "/3314/src/bad_settings.sh %d", device);
+	system(setting_script);
+}
+
 int main()
 {
 	bool verbose = true;
 
-	int
-		device = 1,
-		width = 640,
-		height = 480,
-		framerate = 15,
-		mjpeg = false; //mjpeg is not better than just grabbing a raw image in this case
-
-	//network parameters
-	int
-		bitrate = 600000,			//kbit/sec over network
-		port_stream = 5806,			//destination port for raw image
-		port_thresh = 5001;			//destination port for thresholded image
-	std::string ip = "192.168.1.3"; //destination ip
-
 	CvVideoWriter_GStreamer mywriter;
-	std::string write_pipeline = create_write_pipeline(width, height, framerate,
-													   bitrate, ip, port_thresh);
+	std::string write_pipeline = create_write_pipeline(WIDTH, HEIGHT, FRAMERATE,
+													   BITRATE, IP, PORT);
 	if (verbose)
 	{
 		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
 	}
 	mywriter.open(write_pipeline.c_str(),
-				  0, framerate, cv::Size(width, height), true);
+				  0, FRAMERATE, cv::Size(WIDTH, HEIGHT), true);
 
 	long increment = 0;
 
@@ -83,20 +74,28 @@ int main()
 	//cv::Mat source = cv::imread("/3314/src/testing.jpg");
 	cv::Mat source;
 	cv::VideoCapture leftInput(1);
-	leftInput.set(CV_CAP_PROP_FRAME_WIDTH, width);
-	leftInput.set(CV_CAP_PROP_FRAME_HEIGHT, height);
+	leftInput.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
+	leftInput.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
 	//cv::VideoCapture rightInput(2);
-	double targetX = 0, targetY = 0;
+	double targetX = 0, targetY = 0, distance = 0;
 	bool twoTargetsFound = false;
 	std::shared_ptr<NetworkTable> myNetTable;
-	std::__cxx11::string netTableAddr = "192.168.1.3";
 	NetworkTable::SetClientMode();
 	NetworkTable::SetDSClientEnabled(false);
-	NetworkTable::SetIPAddress(llvm::StringRef(netTableAddr));
+	NetworkTable::SetIPAddress(llvm::StringRef(IP));
 	NetworkTable::Initialize();
 	myNetTable = NetworkTable::GetTable("SmartDashboard");
 	for (;;)
 	{
+		std::cout << "Increment: " << increment << std::endl;
+		if (increment < 50)
+		{
+			flash_bad_settings(DEVICE);
+		}
+		if (increment >= 50 && increment < 100)
+		{
+			flash_good_settings(DEVICE);
+		}
 		double t = (double)cv::getTickCount();
 		double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0;
 		leftInput.read(source);
@@ -108,7 +107,7 @@ int main()
 
 		//HSV threshold
 		cv::cvtColor(source, hsv, cv::COLOR_BGR2HSV);
-		cv::inRange(hsv, cv::Scalar(55, 80, 90), cv::Scalar(255, 255, 255), hsv);
+		cv::inRange(hsv, MIN_HSV, MAX_HSV, hsv);
 		//cv::inRange(source, cv::Scalar(0,100,0), cv::Scalar(255,255,255), hsv);
 
 		//Erosion and dilation
@@ -156,7 +155,7 @@ int main()
 			{
 				rRatio = 1 / rRatio;
 			}
-			if (rRatio < 0.2 || rRatio > 0.6)
+			if (rRatio < MIN_ASPECT_RATIO || rRatio > MAX_ASPECT_RATIO)
 				continue;
 			//std::cout << "Ratio: " << rRatio << std::endl;
 
@@ -165,16 +164,16 @@ int main()
 			double areaRatio = rArea / cArea;
 
 			//Checks if area is too small/aspect ratio is not close to 2/5
-			if (areaRatio < 0.5)
+			if (areaRatio < MIN_AREA_RATIO)
 				continue;
 			//std::cout << "Area ratio: " << areaRatio << std::endl;
-			if (cArea < 25)
+			if (cArea < MIN_AREA)
 				continue;
 			//std::cout << "Area: " << cArea << std::endl;
 			if (rect.width > rect.height)
 				continue;
 			//std::cout << "Width: " << rect.width << " Height: " << rect.height << std::endl;
-			if (offset < 3 || offset > 20)
+			if (offset < MIN_OFFSET || offset > MAX_OFFSET)
 				continue;
 			//std::cout << "Offset: " << offset << std::endl;
 			//if (cRatio < 0.2 || cRatio > 0.6) continue;
@@ -201,26 +200,26 @@ int main()
 
 				for (unsigned int j = 0; j < 4; ++j)
 				{
-					cv::line(poss, pts[j], pts[(j + 1) % 4], cv::Scalar(0, 0, 0));
+					cv::line(poss, pts[j], pts[(j + 1) % 4], BLACK);
 					//double ratio = angle(pts[(j+1)%4], pts[(j+2)%4], pts[j]);
 					//std::cout << "Ratio: " << ratio << "; ";
 				}
 
 				//Commented out but this is distinguish L/R code
 				//Centers are red
-				cv::circle(poss, center, 2, cv::Scalar(0, 0, 255));
+				cv::circle(poss, center, 2, RED);
 
 				for (unsigned int j = 0; j < 4; ++j)
 				{
 					//Rights are magenta
 					if (pts[0].x < pts[2].x)
 					{
-						cv::line(poss, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 255), 2);
+						cv::line(poss, pts[j], pts[(j + 1) % 4], PINK, 2);
 					}
 					//Lefts are black
 					else
 					{
-						cv::line(poss, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 0), 2);
+						cv::line(poss, pts[j], pts[(j + 1) % 4], BLUE, 2);
 					}
 				}
 				//cv::imshow("Possible", poss);
@@ -247,7 +246,10 @@ int main()
 			t3 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
 			best.push_back(firstBest);
-			best.push_back(secondBest);
+			if (firstBest != secondBest)
+			{
+				best.push_back(secondBest);
+			}
 			/*for (size_t j = 0; j < possible.size(); j++)
 			{
 				if (possible[j] == firstBest || possible[j] == secondBest)
@@ -265,58 +267,64 @@ int main()
 					rrect.points(pts);
 					for (unsigned int j = 0; j < 4; ++j)
 					{
-						cv::line(output, pts[j], pts[(j + 1) % 4], cv::Scalar(0, 0, 0), 2);
+						cv::line(output, pts[j], pts[(j + 1) % 4], BLACK, 2);
 					}
 				}
 			}
 
 			t4 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
-			cv::Point2f center1, center2;
+			cv::Point2f rightCenter, leftCenter;
 			for (size_t i = 0; i < best.size(); i++)
 			{
 				cv::RotatedRect rrect = cv::minAreaRect(best[i]);
 				cv::Point2f pts[4];
 				rrect.points(pts);
 				cv::Point2f center = rrect.center;
-				cv::circle(output, center, 2, cv::Scalar(0, 0, 255));
+				cv::circle(output, center, 2, RED);
 				//Point 0 is the lowest point, height is distance between 0 and 1, width is distance between 1 and 2
 				for (unsigned int j = 0; j < 4; ++j)
 				{
 					if (pts[0].x < pts[2].x)
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,255), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 255), 2);
-						center1 = center;
+						cv::line(output, pts[j], pts[(j + 1) % 4], PINK, 2);
+						rightCenter = center;
 					}
 					else
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,0), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 0), 2);
-						center2 = center;
+						cv::line(output, pts[j], pts[(j + 1) % 4], BLUE, 2);
+						leftCenter = center;
 					}
 				}
-				std::cout << "Position: " << center.x << std::endl;
+				//std::cout << "Position: " << center.x << std::endl;
 			}
-			if (center1.x != 0 && center2.x != 0)
+			if (leftCenter.x != 0 && rightCenter.x != 0)
 			{
-				targetX = (center1.x + center2.x) / 2;
-				targetY = (center1.y + center2.y) / 2;
+				targetX = (rightCenter.x + leftCenter.x) / 2;
+				targetY = (rightCenter.y + leftCenter.y) / 2;
+				distance = (rightCenter.x - leftCenter.x) / 2;
 				twoTargetsFound = true;
 			}
 			else
 			{
 				twoTargetsFound = false;
-				if (center1.x > 0 || center2.x > 0)
+				if (rightCenter.x != 0)
 				{
+					targetX = rightCenter.x - distance;
+				}
+				if (leftCenter.x != 0)
+				{
+					targetX = leftCenter.x + distance;
 				}
 			}
 		}
-		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, output.rows), cv::Scalar(0, 0, 255), 2);
-		//cv::line(output, cv::Point(0,targetY), cv::Point(output.cols,targetY), cv::Scalar(0,255,255), 2);
+		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, HEIGHT), cv::Scalar(0, 0, 255), 2);
+		//cv::line(output, cv::Point(0,targetY), cv::Point(WIDTH,targetY), cv::Scalar(0,255,255), 2);
 		t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		myNetTable->PutNumber("targetX", targetX - (output.cols / 2));
-		myNetTable->PutNumber("targetY", -targetY + (output.rows / 2));
+		myNetTable->PutNumber("targetX", targetX - (WIDTH / 2));
+		myNetTable->PutNumber("targetY", -targetY + (HEIGHT / 2));
 		myNetTable->PutBoolean("twoTargetsFound", twoTargetsFound);
 		myNetTable->PutNumber("increment", increment);
 		myNetTable->Flush();

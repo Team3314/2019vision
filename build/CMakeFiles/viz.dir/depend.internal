@@ -234,6 +234,7 @@ CMakeFiles/viz.dir/vision.cpp.o
  /3314/src/cvconfig.h
  /3314/src/precomp.hpp
  /3314/src/vision.cpp
+ /3314/src/vision.hpp
  /usr/include/glib-2.0/glib-object.h
  /usr/include/glib-2.0/glib.h
  /usr/include/glib-2.0/glib/deprecated/gallocator.h
