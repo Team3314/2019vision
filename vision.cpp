@@ -88,11 +88,11 @@ int main()
 	for (;;)
 	{
 		std::cout << "Increment: " << increment << std::endl;
-		if (increment < 50)
+		if (increment == 50)
 		{
 			flash_bad_settings(DEVICE);
 		}
-		if (increment >= 50 && increment < 100)
+		if (increment == 0 || increment == 100)
 		{
 			flash_good_settings(DEVICE);
 		}
