@@ -325,8 +325,7 @@ class TargetTracker
 	}
 };
 
-int
-main()
+int main()
 {
 
 	bool verbose = true;
