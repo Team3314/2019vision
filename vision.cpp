@@ -364,6 +364,7 @@ int main()
 		rightTracker.analyze();
 
 		distance = -1;
+		offset = 0;
 		if (leftTracker.twoTargetsFound && righTracker.twoTargetsFound)
 		{
 			double tanLeft = tan(leftTracker.targetAngle);
@@ -371,6 +372,10 @@ int main()
 			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
 			offset = tanLeft * distance - CAMERA_SEPARATION / 2.0;
 			angleToTarget = atan(offset / distance);
+		} else if (leftTracker.twoTargetsFound) {
+			angleToTarget = leftTracker.targetAngle;
+		} else if (righTracker.twoTargetsFound) {
+			angleToTarget = righTracker.targetAngle;
 		}
 
 		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
