@@ -44,7 +44,8 @@ void flash_bad_settings(int device)
 	system(setting_script);
 }
 
-void setVideoCaps(cv::VideoCapture& input) {
+void setVideoCaps(cv::VideoCapture &input)
+{
 	input.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
 }
@@ -53,27 +54,27 @@ class TargetTracker
 {
 	cv::VideoCapture input;
 
-	public: 
+  public:
 	long frame;
 	int device;
 	cv::Mat source;
 	cv::Mat output;
 
 	double baseOffset = 0;
-	double targetX=0;
-	double targetY=0;
+	double targetX = 0;
+	double targetY = 0;
 	double targetAngle = 0;
 	bool twoTargetsFound = false;
 
-	TargetTracker(int Device, double BaseOffset) 
+	TargetTracker(int Device, double BaseOffset)
+		:input(Device)
 	{
 		device = Device;
 		baseOffset = BaseOffset;
-		input = new cv::VideoCapture(device);
 		setVideoCaps(input)
 	}
 
-	void capture() 
+	void capture()
 	{
 		frame++;
 		if (frame == 50)
@@ -88,7 +89,7 @@ class TargetTracker
 		input.read(source);
 	}
 
-	void analyze(cv::Mat& source) 
+	void analyze(cv::Mat &source)
 	{
 		double t = (double)cv::getTickCount();
 		double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0;
@@ -100,7 +101,7 @@ class TargetTracker
 		cv::Mat hsv;
 		//cv::Mat noise;
 
-		output = source.clone(); 
+		output = source.clone();
 
 		//HSV threshold
 		cv::cvtColor(source, hsv, cv::COLOR_BGR2HSV);
@@ -313,12 +314,11 @@ class TargetTracker
 
 		targetX = targetX - (WIDTH / 2);
 		targetY = -targetY + (HEIGHT / 2);
-		targetAngle = targetX * HORZ_DEGREES_PER_PIXEL + baseOffset; // Could be a more complex calc, we'll see if we need it 
+		targetAngle = targetX * HORZ_DEGREES_PER_PIXEL + baseOffset; // Could be a more complex calc, we'll see if we need it
 
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		std::cout << t * 1000 << "ms" << std::endl;
 		std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
-
 	}
 }
 
@@ -339,14 +339,8 @@ int main()
 
 	long increment = 0;
 
-	TargetTracker leftTracker(1);
-	TargetTracker rightTracker(2);
-	leftTracker.baseOffset = CAMERA_BASE_ANGLE;
-	rightTracker.baseOffset = -CAMERA_BASE_ANGLE;
-
-	double distance = 0;
-	double ofs = 0;
-	double angleToTarget=0;
+	TargetTracker leftTracker(1, CAMERA_BASE_ANGLE);
+	TargetTracker rightTracker(2, -CAMERA_BASE_ANGLE);
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
@@ -357,6 +351,10 @@ int main()
 
 	for (;;)
 	{
+		double distance = 0;
+		double offset = 0;
+		double angleToTarget = 0;
+
 		std::cout << "Increment: " << increment << std::endl;
 
 		leftInput.capture();
@@ -366,13 +364,13 @@ int main()
 		rightTracker.analyze();
 
 		distance = -1;
-		if(leftTracker.twoTargetsFound && righTracker.twoTargetsFound)
+		if (leftTracker.twoTargetsFound && righTracker.twoTargetsFound)
 		{
 			double tanLeft = tan(leftTracker.targetAngle);
-			double tanRight = tan(rightTracker.targetAngle);
-			distance = CAMERA_SEPARATION/(tanLeft+tanRight);
-			ofs = tanLeft*distance - CAMERA_SEPARATION/2.0;
-			angleToTarget = atan(ofs/dist); 
+			double tanRight = tan(-rightTracker.targetAngle);
+			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
+			offset = tanLeft * distance - CAMERA_SEPARATION / 2.0;
+			angleToTarget = atan(offset / distance);
 		}
 
 		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
@@ -383,7 +381,7 @@ int main()
 		myNetTable->PutNumber("Right targetY", rightInput.targetY);
 		myNetTable->PutBoolean("Right twoTargetsFound", rightInput.twoTargetsFound);
 		myNetTable->PutNumber("Distance", distance);
-		myNetTable->PutNumber("Offset", ofs);
+		myNetTable->PutNumber("Offset", offset);
 		myNetTable->PutNumber("Angle To Target", angleToTarget);
 		myNetTable->PutNumber("increment", increment);
 		myNetTable->Flush();
