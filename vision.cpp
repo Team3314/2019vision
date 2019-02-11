@@ -8,6 +8,7 @@
 //Run scripts automatically [x]
 //Constants [x]
 //Confidence levels []
+// [] In order to optimize each independently, split camera and driver station stream params (i.e. width)
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -67,11 +68,11 @@ class TargetTracker
 	bool twoTargetsFound = false;
 
 	TargetTracker(int Device, double BaseOffset)
-		:input(Device)
+		: input(Device)
 	{
 		device = Device;
 		baseOffset = BaseOffset;
-		setVideoCaps(input)
+		setVideoCaps(input);
 	}
 
 	void capture()
@@ -89,10 +90,12 @@ class TargetTracker
 		input.read(source);
 	}
 
-	void analyze(cv::Mat &source)
+	void analyze()
 	{
 		double t = (double)cv::getTickCount();
 		double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0;
+		double distance;
+
 		//cv::imshow("Source", source);
 		cv::normalize(source, source, 0, 255, cv::NORM_MINMAX);
 
@@ -320,9 +323,10 @@ class TargetTracker
 		std::cout << t * 1000 << "ms" << std::endl;
 		std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
 	}
-}
+};
 
-int main()
+int
+main()
 {
 
 	bool verbose = true;
@@ -357,34 +361,38 @@ int main()
 
 		std::cout << "Increment: " << increment << std::endl;
 
-		leftInput.capture();
-		rightInput.capture();
+		leftTracker.capture();
+		rightTracker.capture();
 
 		leftTracker.analyze();
 		rightTracker.analyze();
 
 		distance = -1;
 		offset = 0;
-		if (leftTracker.twoTargetsFound && righTracker.twoTargetsFound)
+		if (leftTracker.twoTargetsFound && rightTracker.twoTargetsFound)
 		{
 			double tanLeft = tan(leftTracker.targetAngle);
 			double tanRight = tan(-rightTracker.targetAngle);
 			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
 			offset = tanLeft * distance - CAMERA_SEPARATION / 2.0;
 			angleToTarget = atan(offset / distance);
-		} else if (leftTracker.twoTargetsFound) {
+		}
+		else if (leftTracker.twoTargetsFound)
+		{
 			angleToTarget = leftTracker.targetAngle;
-		} else if (righTracker.twoTargetsFound) {
-			angleToTarget = righTracker.targetAngle;
+		}
+		else if (rightTracker.twoTargetsFound)
+		{
+			angleToTarget = rightTracker.targetAngle;
 		}
 
 		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		myNetTable->PutNumber("Left targetX", leftInput.targetX);
-		myNetTable->PutNumber("Left targetY", leftInput.targetY);
-		myNetTable->PutBoolean("Left twoTargetsFound", leftInput.twoTargetsFound);
-		myNetTable->PutNumber("Right targetX", rightInput.targetX);
-		myNetTable->PutNumber("Right targetY", rightInput.targetY);
-		myNetTable->PutBoolean("Right twoTargetsFound", rightInput.twoTargetsFound);
+		myNetTable->PutNumber("Left targetX", leftTracker.targetX);
+		myNetTable->PutNumber("Left targetY", leftTracker.targetY);
+		myNetTable->PutBoolean("Left twoTargetsFound", leftTracker.twoTargetsFound);
+		myNetTable->PutNumber("Right targetX", rightTracker.targetX);
+		myNetTable->PutNumber("Right targetY", rightTracker.targetY);
+		myNetTable->PutBoolean("Right twoTargetsFound", rightTracker.twoTargetsFound);
 		myNetTable->PutNumber("Distance", distance);
 		myNetTable->PutNumber("Offset", offset);
 		myNetTable->PutNumber("Angle To Target", angleToTarget);
