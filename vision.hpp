@@ -13,7 +13,17 @@
 
 #include "cap_gstreamer.hpp"
 
-const int DEVICE = 1, WIDTH = 640, HEIGHT = 480, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
+const int DEVICE = 1;
+
+// Camera Parameters
+const double HORZ_DEGREES_PER_PIXEL = 78.0/640.0; // degrees
+
+// Camera Configuration Parameters
+const double CAMERA_SEPARATION = 20.0; // inches
+const double CAMERA_BASE_ANGLE = 10.0; // degrees
+
+// Output stream parameters
+const int WIDTH = 640, HEIGHT = 480, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
 const std::string IP = "192.168.1.3";
 
 const cv::Scalar MIN_HSV(55, 80, 90);

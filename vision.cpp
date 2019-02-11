@@ -9,15 +9,6 @@
 //Constants [x]
 //Confidence levels []
 
-/*static double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
-{
-	double dx1 = pt1.x - pt0.x;
-	double dy1 = pt1.y - pt0.y;
-	double dx2 = pt2.x - pt0.x;
-	double dy2 = pt2.y - pt0.y;
-	return (dx1 * dx2 + dy1 * dy2) / sqrt((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 * dy2) + 1e-10);
-}*/
-
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
 {
@@ -53,70 +44,67 @@ void flash_bad_settings(int device)
 	system(setting_script);
 }
 
-int main()
+void setVideoCaps(cv::VideoCapture& input) {
+	input.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
+	input.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
+}
+
+class TargetTracker
 {
-	bool verbose = true;
+	cv::VideoCapture input;
 
-	CvVideoWriter_GStreamer mywriter;
-	std::string write_pipeline = create_write_pipeline(WIDTH, HEIGHT, FRAMERATE,
-													   BITRATE, IP, PORT);
-	if (verbose)
-	{
-		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
-	}
-	mywriter.open(write_pipeline.c_str(),
-				  0, FRAMERATE, cv::Size(WIDTH, HEIGHT), true);
-
-	long increment = 0;
-
-	//Normalize image
-	//cv::Mat source = cv::imread("/3314/src/tagged.jpg");
-	//cv::Mat source = cv::imread("/3314/src/testing.jpg");
+	public: 
+	long frame;
+	int device;
 	cv::Mat source;
-	cv::VideoCapture leftInput(1);
-	leftInput.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
-	leftInput.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
-	//cv::VideoCapture rightInput(2);
-	double targetX = 0, targetY = 0, distance = 0;
+	cv::Mat output;
+
+	double baseOffset = 0;
+	double targetX=0;
+	double targetY=0;
+	double targetAngle = 0;
 	bool twoTargetsFound = false;
-	std::shared_ptr<NetworkTable> myNetTable;
-	NetworkTable::SetClientMode();
-	NetworkTable::SetDSClientEnabled(false);
-	NetworkTable::SetIPAddress(llvm::StringRef(IP));
-	NetworkTable::Initialize();
-	myNetTable = NetworkTable::GetTable("SmartDashboard");
-	for (;;)
+
+	TargetTracker(int Device, double BaseOffset) 
 	{
-		std::cout << "Increment: " << increment << std::endl;
-		if (increment == 50)
+		device = Device;
+		baseOffset = BaseOffset;
+		input = new cv::VideoCapture(device);
+		setVideoCaps(input)
+	}
+
+	void capture() 
+	{
+		frame++;
+		if (frame == 50)
 		{
-			flash_bad_settings(DEVICE);
+			flash_bad_settings(device);
 		}
-		if (increment == 0 || increment == 100)
+		else if (frame == 0 || frame == 100)
 		{
-			flash_good_settings(DEVICE);
+			flash_good_settings(device);
 		}
+
+		input.read(source);
+	}
+
+	void analyze(cv::Mat& source) 
+	{
 		double t = (double)cv::getTickCount();
 		double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0;
-		leftInput.read(source);
 		//cv::imshow("Source", source);
 		cv::normalize(source, source, 0, 255, cv::NORM_MINMAX);
 
-		cv::Mat output = source.clone(), poss = source.clone();
-		cv::Mat hsv, noise;
+		//cv::Mat output = source.clone(), poss = source.clone();
+		cv::Mat poss = source.clone();
+		cv::Mat hsv;
+		//cv::Mat noise;
+
+		output = source.clone(); 
 
 		//HSV threshold
 		cv::cvtColor(source, hsv, cv::COLOR_BGR2HSV);
 		cv::inRange(hsv, MIN_HSV, MAX_HSV, hsv);
-		//cv::inRange(source, cv::Scalar(0,100,0), cv::Scalar(255,255,255), hsv);
-
-		//Erosion and dilation
-		//cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-		//cv::erode(hsv, noise, kernel, cv::Point(-1, -1), 1);
-		//cv::dilate(noise, noise, kernel, cv::Point(-1, -1), 1);
-
-		//cv::imshow("HSV threshold", hsv);
-		//cv::imshow("Noise removed", noise);
 
 		t1 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
@@ -320,23 +308,93 @@ int main()
 				}
 			}
 		}
+
 		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, HEIGHT), cv::Scalar(0, 0, 255), 2);
-		//cv::line(output, cv::Point(0,targetY), cv::Point(WIDTH,targetY), cv::Scalar(0,255,255), 2);
-		t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		myNetTable->PutNumber("targetX", targetX - (WIDTH / 2));
-		myNetTable->PutNumber("targetY", -targetY + (HEIGHT / 2));
-		myNetTable->PutBoolean("twoTargetsFound", twoTargetsFound);
+
+		targetX = targetX - (WIDTH / 2);
+		targetY = -targetY + (HEIGHT / 2);
+		targetAngle = targetX * HORZ_DEGREES_PER_PIXEL + baseOffset; // Could be a more complex calc, we'll see if we need it 
+
+		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+		std::cout << t * 1000 << "ms" << std::endl;
+		std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
+
+	}
+}
+
+int main()
+{
+
+	bool verbose = true;
+
+	CvVideoWriter_GStreamer mywriter;
+	std::string write_pipeline = create_write_pipeline(WIDTH, HEIGHT, FRAMERATE,
+													   BITRATE, IP, PORT);
+	if (verbose)
+	{
+		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
+	}
+	mywriter.open(write_pipeline.c_str(),
+				  0, FRAMERATE, cv::Size(WIDTH, HEIGHT), true);
+
+	long increment = 0;
+
+	TargetTracker leftTracker(1);
+	TargetTracker rightTracker(2);
+	leftTracker.baseOffset = CAMERA_BASE_ANGLE;
+	rightTracker.baseOffset = -CAMERA_BASE_ANGLE;
+
+	double distance = 0;
+	double ofs = 0;
+	double angleToTarget=0;
+
+	std::shared_ptr<NetworkTable> myNetTable;
+	NetworkTable::SetClientMode();
+	NetworkTable::SetDSClientEnabled(false);
+	NetworkTable::SetIPAddress(llvm::StringRef(IP));
+	NetworkTable::Initialize();
+	myNetTable = NetworkTable::GetTable("SmartDashboard");
+
+	for (;;)
+	{
+		std::cout << "Increment: " << increment << std::endl;
+
+		leftInput.capture();
+		rightInput.capture();
+
+		leftTracker.analyze();
+		rightTracker.analyze();
+
+		distance = -1;
+		if(leftTracker.twoTargetsFound && righTracker.twoTargetsFound)
+		{
+			double tanLeft = tan(leftTracker.targetAngle);
+			double tanRight = tan(rightTracker.targetAngle);
+			distance = CAMERA_SEPARATION/(tanLeft+tanRight);
+			ofs = tanLeft*distance - CAMERA_SEPARATION/2.0;
+			angleToTarget = atan(ofs/dist); 
+		}
+
+		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+		myNetTable->PutNumber("Left targetX", leftInput.targetX);
+		myNetTable->PutNumber("Left targetY", leftInput.targetY);
+		myNetTable->PutBoolean("Left twoTargetsFound", leftInput.twoTargetsFound);
+		myNetTable->PutNumber("Right targetX", rightInput.targetX);
+		myNetTable->PutNumber("Right targetY", rightInput.targetY);
+		myNetTable->PutBoolean("Right twoTargetsFound", rightInput.twoTargetsFound);
+		myNetTable->PutNumber("Distance", distance);
+		myNetTable->PutNumber("Offset", ofs);
+		myNetTable->PutNumber("Angle To Target", angleToTarget);
 		myNetTable->PutNumber("increment", increment);
 		myNetTable->Flush();
 		if (increment % 3)
 		{
-			IplImage outImage = (IplImage)output;
+			IplImage outImage = (IplImage)leftTracker.output;
 			mywriter.writeFrame(&outImage); //write output image over network
 		}
-		cv::imshow("Output", output);
-		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		std::cout << t * 1000 << "ms" << std::endl;
-		std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " << t5 * 1000 << "ms" << std::endl;
+		cv::imshow("Left Output", leftTracker.output);
+		cv::imshow("Right Output", rightTracker.output);
+
 		increment++;
 		cv::waitKey(1);
 	}
