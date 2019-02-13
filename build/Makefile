@@ -111,6 +111,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named cal
+
+# Build rule for target.
+cal: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 cal
+.PHONY : cal
+
+# fast build rule for target.
+cal/fast:
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/build
+.PHONY : cal/fast
+
+#=============================================================================
 # Target rules for targets named viz
 
 # Build rule for target.
@@ -123,12 +136,40 @@ viz/fast:
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/build
 .PHONY : viz/fast
 
+calibrate.o: calibrate.cpp.o
+
+.PHONY : calibrate.o
+
+# target to build an object file
+calibrate.cpp.o:
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/calibrate.cpp.o
+.PHONY : calibrate.cpp.o
+
+calibrate.i: calibrate.cpp.i
+
+.PHONY : calibrate.i
+
+# target to preprocess a source file
+calibrate.cpp.i:
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/calibrate.cpp.i
+.PHONY : calibrate.cpp.i
+
+calibrate.s: calibrate.cpp.s
+
+.PHONY : calibrate.s
+
+# target to generate assembly for a file
+calibrate.cpp.s:
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/calibrate.cpp.s
+.PHONY : calibrate.cpp.s
+
 cap_gstreamer.o: cap_gstreamer.cpp.o
 
 .PHONY : cap_gstreamer.o
 
 # target to build an object file
 cap_gstreamer.cpp.o:
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.o
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.o
 .PHONY : cap_gstreamer.cpp.o
 
@@ -138,6 +179,7 @@ cap_gstreamer.i: cap_gstreamer.cpp.i
 
 # target to preprocess a source file
 cap_gstreamer.cpp.i:
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.i
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.i
 .PHONY : cap_gstreamer.cpp.i
 
@@ -147,6 +189,7 @@ cap_gstreamer.s: cap_gstreamer.cpp.s
 
 # target to generate assembly for a file
 cap_gstreamer.cpp.s:
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.s
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.s
 .PHONY : cap_gstreamer.cpp.s
 
@@ -185,7 +228,11 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... cal"
 	@echo "... viz"
+	@echo "... calibrate.o"
+	@echo "... calibrate.i"
+	@echo "... calibrate.s"
 	@echo "... cap_gstreamer.o"
 	@echo "... cap_gstreamer.i"
 	@echo "... cap_gstreamer.s"

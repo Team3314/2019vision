@@ -2,13 +2,13 @@
 
 //TODO
 //Hinting at other targets by pulling from net tables []
-//Single target tracking [x]
-//Streaming [x]
+//video conference style streaming/multiple outputs on one streamed mat []
 //GUI to fix thresholding []
-//Run scripts automatically [x]
-//Constants [x]
+//auto run vision script on startup []
 //Confidence levels []
-// [] In order to optimize each independently, split camera and driver station stream params (i.e. width)
+// [.] In order to optimize each independently, split camera and driver station stream params (i.e. width)
+// [] command line flags to switch between robot mode/dev board mode
+// calibration system with known distances []
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -47,8 +47,8 @@ void flash_bad_settings(int device)
 
 void setVideoCaps(cv::VideoCapture &input)
 {
-	input.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
-	input.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
+	input.set(CV_CAP_PROP_FRAME_WIDTH, OPENCV_WIDTH);
+	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
 }
 
 class TargetTracker
@@ -64,6 +64,8 @@ class TargetTracker
 	double baseOffset = 0;
 	double targetX = 0;
 	double targetY = 0;
+	double centeredTargetX = 0;
+	double centeredTargetY = 0;
 	double targetAngle = 0;
 	bool twoTargetsFound = false;
 
@@ -313,15 +315,17 @@ class TargetTracker
 			}
 		}
 
-		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, HEIGHT), cv::Scalar(0, 0, 255), 2);
+		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_HEIGHT), cv::Scalar(0, 0, 255), 2);
 
-		targetX = targetX - (WIDTH / 2);
-		targetY = -targetY + (HEIGHT / 2);
-		targetAngle = targetX * HORZ_DEGREES_PER_PIXEL + baseOffset; // Could be a more complex calc, we'll see if we need it
+		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
+		std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
+		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
+		targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL + baseOffset; // Could be a more complex calc, we'll see if we need it
+		std::cout << "Target angle: " << targetAngle << std::endl;
 
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		std::cout << t * 1000 << "ms" << std::endl;
-		std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
+		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
 	}
 };
 
@@ -331,19 +335,19 @@ int main()
 	bool verbose = true;
 
 	CvVideoWriter_GStreamer mywriter;
-	std::string write_pipeline = create_write_pipeline(WIDTH, HEIGHT, FRAMERATE,
+	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
 													   BITRATE, IP, PORT);
 	if (verbose)
 	{
 		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
 	}
 	mywriter.open(write_pipeline.c_str(),
-				  0, FRAMERATE, cv::Size(WIDTH, HEIGHT), true);
+				  0, FRAMERATE, cv::Size(STREAM_WIDTH, STREAM_HEIGHT), true);
 
 	long increment = 0;
 
-	TargetTracker leftTracker(1, CAMERA_BASE_ANGLE);
-	TargetTracker rightTracker(2, -CAMERA_BASE_ANGLE);
+	TargetTracker leftTracker(LEFT_CAMERA_ID, LEFT_BASE_ANGLE);
+	TargetTracker rightTracker(RIGHT_CAMERA_ID, RIGHT_BASE_ANGLE);
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
@@ -358,23 +362,27 @@ int main()
 		double offset = 0;
 		double angleToTarget = 0;
 
-		std::cout << "Increment: " << increment << std::endl;
+		std::cout << "\nIncrement: " << increment << std::endl;
 
 		leftTracker.capture();
 		rightTracker.capture();
 
+		std::cout << "LEFT" << std::endl;
 		leftTracker.analyze();
+		std::cout << "RIGHT" << std::endl;
 		rightTracker.analyze();
 
 		distance = -1;
 		offset = 0;
 		if (leftTracker.twoTargetsFound && rightTracker.twoTargetsFound)
 		{
-			double tanLeft = tan(leftTracker.targetAngle);
-			double tanRight = tan(-rightTracker.targetAngle);
+			double tanLeft = tan((CV_PI/180)*leftTracker.targetAngle);
+			double tanRight = tan((CV_PI/180)*-rightTracker.targetAngle);
+		std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft+tanRight << std::endl;
 			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
-			offset = tanLeft * distance - CAMERA_SEPARATION / 2.0;
-			angleToTarget = atan(offset / distance);
+
+			offset = tanLeft * distance - LEFT_SEPARATION / 2.0;
+			angleToTarget = (180/CV_PI) * atan(offset / distance);
 		}
 		else if (leftTracker.twoTargetsFound)
 		{
@@ -386,15 +394,19 @@ int main()
 		}
 
 		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		myNetTable->PutNumber("Left targetX", leftTracker.targetX);
-		myNetTable->PutNumber("Left targetY", leftTracker.targetY);
+		myNetTable->PutNumber("Left targetX", leftTracker.centeredTargetX);
+		myNetTable->PutNumber("Left targetY", leftTracker.centeredTargetY);
 		myNetTable->PutBoolean("Left twoTargetsFound", leftTracker.twoTargetsFound);
-		myNetTable->PutNumber("Right targetX", rightTracker.targetX);
-		myNetTable->PutNumber("Right targetY", rightTracker.targetY);
+		myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
+		myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
 		myNetTable->PutBoolean("Right twoTargetsFound", rightTracker.twoTargetsFound);
+		std::cout << "COMBINED" << std::endl;
 		myNetTable->PutNumber("Distance", distance);
+		std::cout << "Combined distance: " << distance << std::endl;
 		myNetTable->PutNumber("Offset", offset);
+		std::cout << "Combined offset: " << offset << std::endl;
 		myNetTable->PutNumber("Angle To Target", angleToTarget);
+		std::cout << "Combined angle: " << angleToTarget << std::endl;
 		myNetTable->PutNumber("increment", increment);
 		myNetTable->Flush();
 		if (increment % 3)
