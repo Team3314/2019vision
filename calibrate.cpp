@@ -6,11 +6,12 @@
 //GUI to fix thresholding []
 //auto run vision script on startup []
 //Confidence levels []
-//command line flags to switch between robot mode/dev board mode []
-//calibration system with known distances [wip]
+// [.] In order to optimize each independently, split camera and driver station stream params (i.e. width)
+// [] command line flags to switch between robot mode/dev board mode
+// calibration system with known distances []
 
-//FIXME
-//flashing settings only works on one camera, not all []
+//split hfov/width*multiplier into 2 vars, one for each cam? could give more accurate camera angles which leads to better distances/target angles
+//e.g. while .875 may be a better approx for the right camera, maybe the left's consistently lower .764 would be better for that side
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -71,7 +72,6 @@ class TargetTracker
 	double centeredTargetY = 0;
 	double targetAngle = 0;
 	bool twoTargetsFound = false;
-	bool hintingExample = false;
 
 	TargetTracker(int Device, double BaseOffset, double Multiplier)
 		: input(Device)
@@ -172,8 +172,8 @@ class TargetTracker
 			if (rect.width > rect.height)
 				continue;
 			//std::cout << "Width: " << rect.width << " Height: " << rect.height << std::endl;
-			if (offset < MIN_OFFSET || offset > MAX_OFFSET)
-				continue;
+		//	if (offset < MIN_OFFSET || offset > MAX_OFFSET)
+		//		continue;
 			//std::cout << "Offset: " << offset << std::endl;
 			//if (cRatio < 0.2 || cRatio > 0.6) continue;
 
@@ -184,8 +184,8 @@ class TargetTracker
 
 		if (possible.size() > 0)
 		{
-			double mostArea = 0, leastArea = 10000;
-			double secondMostArea = 0, secondLeastArea = 10000;
+			double mostArea = 0;
+			double secondMostArea = 0;
 			std::vector<cv::Point> firstBest = possible[0];
 			std::vector<cv::Point> secondBest = possible[0];
 
@@ -224,41 +224,20 @@ class TargetTracker
 				//cv::imshow("Possible", poss);
 
 				double area = cv::contourArea(possible[i]);
-				std::cout << "Hinting on: " << hintingExample << std::endl;
-				if (hintingExample) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
+				//std::cout << "Area: " << area << std::endl;
+				if (area > secondMostArea)
 				{
-					if (area < secondLeastArea)
+					if (area >= mostArea)
 					{
-						if (area <= leastArea)
-						{
-							secondLeastArea = leastArea;
-							secondBest = firstBest;
-							leastArea = area;
-							firstBest = possible[i];
-						}
-						else if (area > leastArea)
-						{
-							secondLeastArea = area;
-							secondBest = possible[i];
-						}
+						secondMostArea = mostArea;
+						secondBest = firstBest;
+						mostArea = area;
+						firstBest = possible[i];
 					}
-				}
-				else if (!hintingExample) //default to largest areas otherwise
-				{
-					if (area > secondMostArea)
+					else if (area < mostArea)
 					{
-						if (area >= mostArea)
-						{
-							secondMostArea = mostArea;
-							secondBest = firstBest;
-							mostArea = area;
-							firstBest = possible[i];
-						}
-						else if (area < mostArea)
-						{
-							secondMostArea = area;
-							secondBest = possible[i];
-						}
+						secondMostArea = area;
+						secondBest = possible[i];
 					}
 				}
 			}
@@ -268,7 +247,7 @@ class TargetTracker
 			best.push_back(firstBest);
 			if (firstBest != secondBest)
 			{
-				best.push_back(secondBest);
+				//best.push_back(secondBest);
 			}
 			/*for (size_t j = 0; j < possible.size(); j++)
 			{
@@ -332,11 +311,11 @@ class TargetTracker
 				twoTargetsFound = false;
 				if (rightCenter.x != 0)
 				{
-					targetX = rightCenter.x - distance;
+					targetX = rightCenter.x;
 				}
 				if (leftCenter.x != 0)
 				{
-					targetX = leftCenter.x + distance;
+					targetX = leftCenter.x;
 				}
 			}
 		}
@@ -345,10 +324,52 @@ class TargetTracker
 
 		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
 		std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
-		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
-		targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
-		std::cout << "Target angle: " << targetAngle << std::endl;
+		if (USE_T_CALIBRATION) 
+		{
+			double cameraAngle;
+			double inCameraAngle;
+			double angleToTarget;	
+			if(device==LEFT_CAMERA_ID) 
+			{
+				angleToTarget = atan(TARGET_DISTANCE/LEFT_SEPARATION) *(180.0/CV_PI);
+				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier;
+				cameraAngle = angleToTarget+inCameraAngle;
+			}
+			if(device==RIGHT_CAMERA_ID) 
+			{
+				angleToTarget = atan(TARGET_DISTANCE/RIGHT_SEPARATION) *(180.0/CV_PI);
+				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier;
+				cameraAngle = angleToTarget-inCameraAngle;
+			}
+			std::cout << "angle to target: " << angleToTarget << std::endl;
+			std::cout << "in Camera Angle: " << inCameraAngle << std::endl;
+			std::cout << "Camera Angle: " << cameraAngle << "   " << 90-cameraAngle << std::endl;
+		}
+		else
+		{
+			//perpendicular distance
+			//separation of cameras / 2
+			//atan perp/sep = angle to target
+			//(aot - ca)*(width/hfov)=pixel offset from 0
 
+			double cameraAngle;
+			double perpDist = sqrt((CALIBRATION_DISTANCE)*(CALIBRATION_DISTANCE) - (CAMERA_SEPARATION/2)*(CAMERA_SEPARATION/2));
+			std::cout << "Perp dist: " << perpDist << std::endl;
+			//separation/2 defined in header
+			double angleToTarg = atan(perpDist / (CAMERA_SEPARATION/2)) * (180/CV_PI);
+			std::cout << "Calc'd angle to target: " << angleToTarg << std::endl;
+			if (device == RIGHT_CAMERA_ID) {
+				cameraAngle = -angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier);
+			} else {
+				cameraAngle = angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier);
+			}
+			std::cout << "Calculated camera angle: " << cameraAngle << std::endl;
+
+		}	
+		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
+		targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL*multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
+			//std::cout << "Target angle: " << targetAngle << std::endl;
+	
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		std::cout << t * 1000 << "ms" << std::endl;
 		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
@@ -382,17 +403,11 @@ int main()
 	NetworkTable::Initialize();
 	myNetTable = NetworkTable::GetTable("SmartDashboard");
 
-	bool hintingExample;
-
 	for (;;)
 	{
 		double distance = 0;
 		double offset = 0;
 		double angleToTarget = 0;
-		hintingExample = myNetTable->GetBoolean("Testing", false);
-		leftTracker.hintingExample = !hintingExample;
-		rightTracker.hintingExample = hintingExample;
-		;
 
 		std::cout << "\nIncrement: " << increment << std::endl;
 
@@ -402,19 +417,17 @@ int main()
 		std::cout << "LEFT" << std::endl;
 		leftTracker.analyze();
 		std::cout << "RIGHT" << std::endl;
-		rightTracker.analyze();
+		rightTracker.analyze();	
 
 		distance = -1;
 		offset = 0;
 		if (leftTracker.twoTargetsFound && rightTracker.twoTargetsFound)
 		{
-			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
-			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
-			std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
+			double tanLeft = tan((CV_PI/180)*leftTracker.targetAngle);
+			double tanRight = tan((CV_PI/180)*-rightTracker.targetAngle);
 			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
-
-			offset = tanLeft * distance - LEFT_SEPARATION / 2.0;
-			angleToTarget = (180 / CV_PI) * atan(offset / distance);
+			offset = tanLeft * distance - CAMERA_SEPARATION / 2.0;
+			angleToTarget = (180/CV_PI) * atan(offset / distance);
 		}
 		else if (leftTracker.twoTargetsFound)
 		{
@@ -446,11 +459,8 @@ int main()
 			IplImage outImage = (IplImage)leftTracker.output;
 			mywriter.writeFrame(&outImage); //write output image over network
 		}
-		cv::Mat combine;
-		cv::hconcat(leftTracker.output, rightTracker.output, combine);
-		//cv::imshow("Left Output", leftTracker.output);
-		//cv::imshow("Right Output", rightTracker.output);
-		cv::imshow("Output", combine);
+		cv::imshow("Left Output", leftTracker.output);
+		cv::imshow("Right Output", rightTracker.output);
 
 		increment++;
 		cv::waitKey(1);

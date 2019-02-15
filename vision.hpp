@@ -13,17 +13,29 @@
 
 #include "cap_gstreamer.hpp"
 
-const int DEVICE = 1;
+const int LEFT_CAMERA_ID = 1, RIGHT_CAMERA_ID = 2;
 
 // Camera Parameters
-const double HORZ_DEGREES_PER_PIXEL = 78.0/640.0; // degrees
+const double HORZ_DEGREES_PER_PIXEL = (70.42 / 640);    // degrees
+const double LEFT_MULTIPLIER = 1, RIGHT_MULTIPLIER = 1; //.764, RIGHT_MULTIPLIER = .875;
 
 // Camera Configuration Parameters
-const double CAMERA_SEPARATION = 20.0; // inches
-const double CAMERA_BASE_ANGLE = 10.0; // degrees
+const double CALIBRATION_DISTANCE = 27.64;              //string len. in inches div. 2
+const double LEFT_BASE_ANGLE = 0, RIGHT_BASE_ANGLE = 0; // degrees
+
+// Camera Calibration Parameters
+// using T bracket
+const double LEFT_SEPARATION = 18.75 / 2;  //inches
+const double RIGHT_SEPARATION = 18.75 / 2; //inches
+const double TARGET_DISTANCE = 150;        //inches perpendicular
+const bool USE_T_CALIBRATION = true;
+const double CAMERA_SEPARATION = LEFT_SEPARATION + RIGHT_SEPARATION; // inches
+
+//OpenCV camera calc parameters
+const int OPENCV_WIDTH = 640, OPENCV_HEIGHT = 480;
 
 // Output stream parameters
-const int WIDTH = 640, HEIGHT = 480, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
+const int STREAM_WIDTH = 640*2, STREAM_HEIGHT = 480, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
 const std::string IP = "192.168.1.3";
 
 const cv::Scalar MIN_HSV(55, 80, 90);
