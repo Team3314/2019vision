@@ -2,7 +2,7 @@
 
 //TODO
 //Hinting at other targets by pulling from net tables []
-//video conference style streaming/multiple outputs on one streamed mat []
+//video conference style streaming [] / multiple outputs on one streamed mat [x]
 //GUI to fix thresholding []
 //auto run vision script on startup []
 //Confidence levels []
@@ -10,7 +10,8 @@
 //calibration system with known distances [wip]
 
 //FIXME
-//flashing settings only works on one camera, not all []
+//flashing settings thru code only works on one camera []
+//unable to merge and push :( []
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -71,7 +72,7 @@ class TargetTracker
 	double centeredTargetY = 0;
 	double targetAngle = 0;
 	bool twoTargetsFound = false;
-	bool hintingExample = false;
+	bool lowestAreaFilter = false;
 
 	TargetTracker(int Device, double BaseOffset, double Multiplier)
 		: input(Device)
@@ -224,8 +225,8 @@ class TargetTracker
 				//cv::imshow("Possible", poss);
 
 				double area = cv::contourArea(possible[i]);
-				std::cout << "Hinting on: " << hintingExample << std::endl;
-				if (hintingExample) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
+				std::cout << "Lowest area filter on: " << lowestAreaFilter << std::endl;
+				if (lowestAreaFilter) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
 				{
 					if (area < secondLeastArea)
 					{
@@ -243,7 +244,7 @@ class TargetTracker
 						}
 					}
 				}
-				else if (!hintingExample) //default to largest areas otherwise
+				else if (!lowestAreaFilter) //default to largest areas otherwise
 				{
 					if (area > secondMostArea)
 					{
@@ -389,9 +390,9 @@ int main()
 		double distance = 0;
 		double offset = 0;
 		double angleToTarget = 0;
-		hintingExample = myNetTable->GetBoolean("Testing", false);
-		leftTracker.hintingExample = !hintingExample;
-		rightTracker.hintingExample = hintingExample;
+		hintingExample = myNetTable->GetBoolean("Lowest area test", false);
+		leftTracker.lowestAreaFilter = !hintingExample;
+		rightTracker.lowestAreaFilter = hintingExample;
 		;
 
 		std::cout << "\nIncrement: " << increment << std::endl;
