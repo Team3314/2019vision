@@ -1,17 +1,18 @@
 #include "vision.hpp"
 
 //TODO
-//Hinting at other targets by pulling from net tables []
+//Hinting at other targets by pulling from net tables [may have idea down]
 //video conference style streaming [] / multiple outputs on one streamed mat [x]
 //GUI to fix thresholding []
-//auto run vision script on startup []
 //Confidence levels []
-//command line flags to switch between robot mode/dev board mode []
 //calibration system with known distances [wip]
+
+//environ
+//command line flags to switch between robot mode/dev board mode []
+//static ip []
 
 //FIXME
 //flashing settings thru code only works on one camera []
-//unable to merge and push :( []
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -225,7 +226,7 @@ class TargetTracker
 				//cv::imshow("Possible", poss);
 
 				double area = cv::contourArea(possible[i]);
-				std::cout << "Lowest area filter on: " << lowestAreaFilter << std::endl;
+				//std::cout << "Lowest area filter on: " << lowestAreaFilter << std::endl;
 				if (lowestAreaFilter) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
 				{
 					if (area < secondLeastArea)
@@ -345,25 +346,39 @@ class TargetTracker
 		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_HEIGHT), cv::Scalar(0, 0, 255), 2);
 
 		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
-		std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
+		//std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
 		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
 		targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
-		std::cout << "Target angle: " << targetAngle << std::endl;
+		//std::cout << "Target angle: " << targetAngle << std::endl;
 
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		std::cout << t * 1000 << "ms" << std::endl;
+		//std::cout << t * 1000 << "ms" << std::endl;
 		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
 	}
 };
 
-int main()
+int main(int argc, char *argv[])
 {
-
-	bool verbose = true;
+	bool robot, verbose;
+	std::string ntIP, streamIP;
+	if (argc <= 1)
+	{
+		robot = true;
+		verbose = false;
+		ntIP = "10.33.14.2";
+		streamIP = "10.33.14.5";
+	}
+	else
+	{
+		robot = false;
+		verbose = true;
+		ntIP = "192.168.1.3";
+		streamIP = "192.168.1.3";
+	}
 
 	CvVideoWriter_GStreamer mywriter;
 	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
-													   BITRATE, IP, PORT);
+													   BITRATE, streamIP, PORT);
 	if (verbose)
 	{
 		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
@@ -379,7 +394,7 @@ int main()
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
 	NetworkTable::SetDSClientEnabled(false);
-	NetworkTable::SetIPAddress(llvm::StringRef(IP));
+	NetworkTable::SetIPAddress(llvm::StringRef(ntIP));
 	NetworkTable::Initialize();
 	myNetTable = NetworkTable::GetTable("SmartDashboard");
 
@@ -393,17 +408,21 @@ int main()
 		hintingExample = myNetTable->GetBoolean("Lowest area test", false);
 		leftTracker.lowestAreaFilter = !hintingExample;
 		rightTracker.lowestAreaFilter = hintingExample;
-		;
-
-		std::cout << "\nIncrement: " << increment << std::endl;
 
 		leftTracker.capture();
 		rightTracker.capture();
-
-		std::cout << "LEFT" << std::endl;
 		leftTracker.analyze();
-		std::cout << "RIGHT" << std::endl;
 		rightTracker.analyze();
+		
+		if (!robot) {
+			std::cout << "\nIncrement: " << increment << std::endl;
+			std::cout << "LEFT" << std::endl;
+			std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
+			std::cout << "Target angle: " << leftTracker.targetAngle << std::endl;
+			std::cout << "RIGHT" << std::endl;
+			std::cout << "centeredTargetX: " << rightTracker.centeredTargetX << std::endl;
+			std::cout << "Target angle: " << rightTracker.targetAngle << std::endl;
+		}
 
 		distance = -1;
 		offset = 0;
@@ -411,7 +430,7 @@ int main()
 		{
 			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
 			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
-			std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
+			//std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
 			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
 
 			offset = tanLeft * distance - LEFT_SEPARATION / 2.0;
@@ -433,13 +452,17 @@ int main()
 		myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
 		myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
 		myNetTable->PutBoolean("Right twoTargetsFound", rightTracker.twoTargetsFound);
-		std::cout << "COMBINED" << std::endl;
 		myNetTable->PutNumber("Distance", distance);
-		std::cout << "Combined distance: " << distance << std::endl;
 		myNetTable->PutNumber("Offset", offset);
-		std::cout << "Combined offset: " << offset << std::endl;
 		myNetTable->PutNumber("Angle To Target", angleToTarget);
-		std::cout << "Combined angle: " << angleToTarget << std::endl;
+		
+		if (!robot) {
+			std::cout << "COMBINED" << std::endl;
+			std::cout << "Combined distance: " << distance << std::endl;
+			std::cout << "Combined offset: " << offset << std::endl;
+			std::cout << "Combined angle: " << angleToTarget << std::endl;
+		}
+		
 		myNetTable->PutNumber("increment", increment);
 		myNetTable->Flush();
 		if (increment % 3)
@@ -451,7 +474,9 @@ int main()
 		cv::hconcat(leftTracker.output, rightTracker.output, combine);
 		//cv::imshow("Left Output", leftTracker.output);
 		//cv::imshow("Right Output", rightTracker.output);
-		cv::imshow("Output", combine);
+		if (!robot) {		
+			cv::imshow("Output", combine);
+		}
 
 		increment++;
 		cv::waitKey(1);
