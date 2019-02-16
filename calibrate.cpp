@@ -72,13 +72,17 @@ class TargetTracker
 	double centeredTargetY = 0;
 	double targetAngle = 0;
 	bool twoTargetsFound = false;
+	int leftCameraID, rightCameraID;
 
-	TargetTracker(int Device, double BaseOffset, double Multiplier)
+
+	TargetTracker(int Device, double BaseOffset, double Multiplier, int LeftCameraID, int RightCameraID)
 		: input(Device)
 	{
 		device = Device;
 		baseOffset = BaseOffset;
 		multiplier = Multiplier;
+		leftCameraID = LeftCameraID;
+		rightCameraID = RightCameraID;
 		setVideoCaps(input);
 	}
 
@@ -329,13 +333,13 @@ class TargetTracker
 			double cameraAngle;
 			double inCameraAngle;
 			double angleToTarget;	
-			if(device==LEFT_CAMERA_ID) 
+			if(device==leftCameraID) 
 			{
 				angleToTarget = atan(TARGET_DISTANCE/LEFT_SEPARATION) *(180.0/CV_PI);
 				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier;
 				cameraAngle = angleToTarget+inCameraAngle;
 			}
-			if(device==RIGHT_CAMERA_ID) 
+			if(device==rightCameraID) 
 			{
 				angleToTarget = atan(TARGET_DISTANCE/RIGHT_SEPARATION) *(180.0/CV_PI);
 				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier;
@@ -358,7 +362,7 @@ class TargetTracker
 			//separation/2 defined in header
 			double angleToTarg = atan(perpDist / (CAMERA_SEPARATION/2)) * (180/CV_PI);
 			std::cout << "Calc'd angle to target: " << angleToTarg << std::endl;
-			if (device == RIGHT_CAMERA_ID) {
+			if (device == rightCameraID) {
 				cameraAngle = -angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier);
 			} else {
 				cameraAngle = angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier);
@@ -376,14 +380,44 @@ class TargetTracker
 	}
 };
 
-int main()
+int main(int argc, char *argv[])
 {
 
 	bool verbose = true;
+	std::string streamIP = "192.168.1.3";
+	int leftCameraID=1, rightCameraID=2;
+
+
+	std::vector<std::string> args(argv, argv + argc);
+	for (size_t i = 1; i < args.size(); ++i)
+	{
+		if (args[i] == "dev")
+		{
+			streamIP = "192.168.1.3";
+		}
+		if (args[i] == "robot")
+		{
+			streamIP = "10.33.14.5";
+		}
+		if (args[i]=="streamip")
+		{
+			streamIP = args[i+1];
+		}
+		if (args[i]=="leftcameraid")
+		{
+			leftCameraID = atoi(args[i+1].c_str());
+		}
+		if (args[i]=="rightcameraid")
+		{
+			rightCameraID = atoi(args[i+1].c_str());
+		}
+
+	}
+
 
 	CvVideoWriter_GStreamer mywriter;
 	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
-													   BITRATE, IP, PORT);
+													   BITRATE, streamIP, PORT);
 	if (verbose)
 	{
 		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
@@ -393,13 +427,13 @@ int main()
 
 	long increment = 0;
 
-	TargetTracker leftTracker(LEFT_CAMERA_ID, LEFT_BASE_ANGLE, LEFT_MULTIPLIER);
-	TargetTracker rightTracker(RIGHT_CAMERA_ID, RIGHT_BASE_ANGLE, RIGHT_MULTIPLIER);
+	TargetTracker leftTracker(leftCameraID, LEFT_BASE_ANGLE, LEFT_MULTIPLIER, leftCameraID, rightCameraID);
+	TargetTracker rightTracker(rightCameraID, RIGHT_BASE_ANGLE, RIGHT_MULTIPLIER, leftCameraID, rightCameraID);
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
 	NetworkTable::SetDSClientEnabled(false);
-	NetworkTable::SetIPAddress(llvm::StringRef(IP));
+	NetworkTable::SetIPAddress(llvm::StringRef(streamIP));
 	NetworkTable::Initialize();
 	myNetTable = NetworkTable::GetTable("SmartDashboard");
 

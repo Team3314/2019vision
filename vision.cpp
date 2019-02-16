@@ -359,22 +359,83 @@ class TargetTracker
 
 int main(int argc, char *argv[])
 {
-	bool robot, verbose;
+	int leftCameraID=0, rightCameraID=1;
+	bool robot, verbose, showOutputWindow;
 	std::string ntIP, streamIP;
-	if (argc <= 1)
+
+	// default to robot mode
+	robot = true;
+	verbose = false;
+	showOutputWindow = false;
+	ntIP = "10.33.14.2";
+	streamIP = "10.33.14.5";
+	leftCameraID = 0;
+	rightCameraID = 1;
+
+	std::vector<std::string> args(argv, argv + argc);
+	for (size_t i = 1; i < args.size(); ++i)
 	{
-		robot = true;
-		verbose = false;
-		ntIP = "10.33.14.2";
-		streamIP = "10.33.14.5";
+		if (args[i] == "-h")
+		{
+			std::cout << "Options:" << std::endl;
+			std::cout << "dev - dev mode defaults" << std::endl;
+			std::cout << "robot - robot mode defaults" << std::endl;
+			std::cout << "ntip <ip> - network table ip address" << std::endl;
+			std::cout << "streamip <ip> - stream output ip address" << std::endl;
+			std::cout << "showoutput - show output window locally" << std::endl;
+			std::cout << "leftcameraid <id> - left camera id override" << std::endl;
+			std::cout << "rightcameraid <id> - right camera id override" << std::endl;
+			std::cout << "" << std::endl;
+			return 0;
+		}
+		if (args[i] == "dev")
+		{
+			robot = false;
+			verbose = true;
+			showOutputWindow = true;
+			ntIP = "192.168.1.3";
+			streamIP = "192.168.1.3";
+			leftCameraID = 1;
+			rightCameraID = 2;
+		}
+		if (args[i] == "robot")
+		{
+			robot = true;
+			verbose = false;
+			showOutputWindow = false;
+			ntIP = "10.33.14.2";
+			streamIP = "10.33.14.5";
+			leftCameraID = 0;
+			rightCameraID = 1;
+		}
+		if (args[i]=="ntip")
+		{
+			ntIP = args[i+1];
+		}
+		if (args[i]=="streamip")
+		{
+			streamIP = args[i+1];
+		}
+		if (args[i]=="showoutput")
+		{
+			showOutputWindow = true;
+		}
+		if (args[i]=="leftcameraid")
+		{
+			leftCameraID = atoi(args[i+1].c_str());
+		}
+		if (args[i]=="rightcameraid")
+		{
+			rightCameraID = atoi(args[i+1].c_str());
+		}
 	}
-	else
-	{
-		robot = false;
-		verbose = true;
-		ntIP = "192.168.1.3";
-		streamIP = "192.168.1.3";
-	}
+
+	// output this always...
+	//if (!robot) 
+	//{
+		std::cout << "LeftCameraID: " << leftCameraID << "  RightCameraID: " << rightCameraID << std::endl;
+		std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl; 
+	//}
 
 	CvVideoWriter_GStreamer mywriter;
 	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
@@ -388,8 +449,8 @@ int main(int argc, char *argv[])
 
 	long increment = 0;
 
-	TargetTracker leftTracker(LEFT_CAMERA_ID, LEFT_BASE_ANGLE, LEFT_MULTIPLIER);
-	TargetTracker rightTracker(RIGHT_CAMERA_ID, RIGHT_BASE_ANGLE, RIGHT_MULTIPLIER);
+	TargetTracker leftTracker(leftCameraID, LEFT_BASE_ANGLE, LEFT_MULTIPLIER);
+	TargetTracker rightTracker(rightCameraID, RIGHT_BASE_ANGLE, RIGHT_MULTIPLIER);
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
@@ -413,8 +474,9 @@ int main(int argc, char *argv[])
 		rightTracker.capture();
 		leftTracker.analyze();
 		rightTracker.analyze();
-		
-		if (!robot) {
+
+		if (!robot)
+		{
 			std::cout << "\nIncrement: " << increment << std::endl;
 			std::cout << "LEFT" << std::endl;
 			std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
@@ -455,14 +517,15 @@ int main(int argc, char *argv[])
 		myNetTable->PutNumber("Distance", distance);
 		myNetTable->PutNumber("Offset", offset);
 		myNetTable->PutNumber("Angle To Target", angleToTarget);
-		
-		if (!robot) {
+
+		if (!robot)
+		{
 			std::cout << "COMBINED" << std::endl;
 			std::cout << "Combined distance: " << distance << std::endl;
 			std::cout << "Combined offset: " << offset << std::endl;
 			std::cout << "Combined angle: " << angleToTarget << std::endl;
 		}
-		
+
 		myNetTable->PutNumber("increment", increment);
 		myNetTable->Flush();
 		if (increment % 3)
@@ -474,7 +537,8 @@ int main(int argc, char *argv[])
 		cv::hconcat(leftTracker.output, rightTracker.output, combine);
 		//cv::imshow("Left Output", leftTracker.output);
 		//cv::imshow("Right Output", rightTracker.output);
-		if (!robot) {		
+		if (showOutputWindow)
+		{
 			cv::imshow("Output", combine);
 		}
 

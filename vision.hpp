@@ -13,7 +13,7 @@
 
 #include "cap_gstreamer.hpp"
 
-const int LEFT_CAMERA_ID = 1, RIGHT_CAMERA_ID = 2;
+//const int LEFT_CAMERA_ID = 1, RIGHT_CAMERA_ID = 2;
 
 // Camera Parameters
 const double HORZ_DEGREES_PER_PIXEL = (70.42 / 640);    // degrees
