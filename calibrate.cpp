@@ -57,7 +57,6 @@ void setVideoCaps(cv::VideoCapture &input)
 class TargetTracker
 {
 	cv::VideoCapture input;
-
   public:
 	long frame;
 	int device;
@@ -73,13 +72,15 @@ class TargetTracker
 	double targetAngle = 0;
 	bool twoTargetsFound = false;
 	int leftCameraID, rightCameraID;
+	double cameraSeparation;
 
 
-	TargetTracker(int Device, double BaseOffset, double Multiplier, int LeftCameraID, int RightCameraID)
+	TargetTracker(int Device, double BaseOffset, double CameraSeparation, double Multiplier, int LeftCameraID, int RightCameraID)
 		: input(Device)
 	{
 		device = Device;
 		baseOffset = BaseOffset;
+		cameraSeparation = CameraSeparation;
 		multiplier = Multiplier;
 		leftCameraID = LeftCameraID;
 		rightCameraID = RightCameraID;
@@ -348,6 +349,7 @@ class TargetTracker
 			std::cout << "angle to target: " << angleToTarget << std::endl;
 			std::cout << "in Camera Angle: " << inCameraAngle << std::endl;
 			std::cout << "Camera Angle: " << cameraAngle << "   " << 90-cameraAngle << std::endl;
+			std::cout << "deg/px " << 1/(fabs(centeredTargetX) / (90-angleToTarget)) << std::endl;
 		}
 		else
 		{
@@ -357,10 +359,10 @@ class TargetTracker
 			//(aot - ca)*(width/hfov)=pixel offset from 0
 
 			double cameraAngle;
-			double perpDist = sqrt((CALIBRATION_DISTANCE)*(CALIBRATION_DISTANCE) - (CAMERA_SEPARATION/2)*(CAMERA_SEPARATION/2));
+			double perpDist = sqrt((CALIBRATION_DISTANCE)*(CALIBRATION_DISTANCE) - (cameraSeparation/2)*(cameraSeparation/2));
 			std::cout << "Perp dist: " << perpDist << std::endl;
 			//separation/2 defined in header
-			double angleToTarg = atan(perpDist / (CAMERA_SEPARATION/2)) * (180/CV_PI);
+			double angleToTarg = atan(perpDist / (cameraSeparation/2)) * (180/CV_PI);
 			std::cout << "Calc'd angle to target: " << angleToTarg << std::endl;
 			if (device == rightCameraID) {
 				cameraAngle = -angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier);
@@ -382,26 +384,74 @@ class TargetTracker
 
 int main(int argc, char *argv[])
 {
-
-	bool verbose = true;
-	std::string streamIP = "192.168.1.3";
-	int leftCameraID=1, rightCameraID=2;
-
+	// default to robot mode
+	bool robot = true;
+	bool verbose = false;
+	bool showOutputWindow = false;
+	std::string ntIP = "10.33.14.2";
+	std::string streamIP = "10.33.14.5";
+	int leftCameraID = 0;
+	int rightCameraID = 1;
+	double leftCameraAngle = 0; //deg
+	double rightCameraAngle = 0; //deg
+	double cameraSeparation = 22; //inches
 
 	std::vector<std::string> args(argv, argv + argc);
 	for (size_t i = 1; i < args.size(); ++i)
 	{
+		if (args[i] == "-h")
+		{
+			std::cout << "Options:" << std::endl;
+			std::cout << "dev - dev mode defaults" << std::endl;
+			std::cout << "robot - robot mode defaults" << std::endl;
+			std::cout << "ntip <ip> - network table ip address" << std::endl;
+			std::cout << "streamip <ip> - stream output ip address" << std::endl;
+			std::cout << "showoutput - show output window locally" << std::endl;
+			std::cout << "leftcameraid <id> - left camera id override" << std::endl;
+			std::cout << "rightcameraid <id> - right camera id override" << std::endl;
+			std::cout << "leftcameraangle <double> - left camera angle override" << std::endl;
+			std::cout << "rightcameraangle <double> - right camera angle override" << std::endl;
+			std::cout << "cameraseparation <double> - camera separation override" << std::endl;
+			std::cout << "" << std::endl;
+			return 0;
+		}
 		if (args[i] == "dev")
 		{
-			streamIP = "192.168.1.3";
+			robot = false;
+			verbose = true;
+			showOutputWindow = true;
+			ntIP = "192.168.1.198";
+			streamIP = "192.168.1.198";
+			leftCameraID = 1;
+			rightCameraID = 2;
+			leftCameraAngle = 0; //deg
+			rightCameraAngle = 0; //deg
+			cameraSeparation = 22; //inches
 		}
 		if (args[i] == "robot")
 		{
+			robot = true;
+			verbose = false;
+			showOutputWindow = false;
+			ntIP = "10.33.14.2";
 			streamIP = "10.33.14.5";
+			leftCameraID = 0;
+			rightCameraID = 1;
+			leftCameraAngle = 0; //deg
+			rightCameraAngle = 0; //deg
+			cameraSeparation = 22; //inches
+		}
+		if (args[i]=="ntip")
+		{
+			ntIP = args[i+1];
 		}
 		if (args[i]=="streamip")
 		{
 			streamIP = args[i+1];
+		}
+		if (args[i]=="showoutput")
+		{
+			showOutputWindow = true;
 		}
 		if (args[i]=="leftcameraid")
 		{
@@ -411,9 +461,19 @@ int main(int argc, char *argv[])
 		{
 			rightCameraID = atoi(args[i+1].c_str());
 		}
-
+		if (args[i]=="leftcameraangle")
+		{
+			leftCameraAngle = stod(args[i+1]);
+		}
+		if (args[i]=="rightcameraangle")
+		{
+			rightCameraAngle = stod(args[i+1]);
+		}
+		if (args[i]=="cameraseparation")
+		{
+			cameraSeparation = stod(args[i+1]);
+		}
 	}
-
 
 	CvVideoWriter_GStreamer mywriter;
 	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
@@ -427,8 +487,8 @@ int main(int argc, char *argv[])
 
 	long increment = 0;
 
-	TargetTracker leftTracker(leftCameraID, LEFT_BASE_ANGLE, LEFT_MULTIPLIER, leftCameraID, rightCameraID);
-	TargetTracker rightTracker(rightCameraID, RIGHT_BASE_ANGLE, RIGHT_MULTIPLIER, leftCameraID, rightCameraID);
+	TargetTracker leftTracker(leftCameraID, leftCameraAngle, cameraSeparation, LEFT_MULTIPLIER, leftCameraID, rightCameraID);
+	TargetTracker rightTracker(rightCameraID, rightCameraAngle, cameraSeparation, RIGHT_MULTIPLIER, leftCameraID, rightCameraID);
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
@@ -459,8 +519,8 @@ int main(int argc, char *argv[])
 		{
 			double tanLeft = tan((CV_PI/180)*leftTracker.targetAngle);
 			double tanRight = tan((CV_PI/180)*-rightTracker.targetAngle);
-			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
-			offset = tanLeft * distance - CAMERA_SEPARATION / 2.0;
+			distance = cameraSeparation / (tanLeft + tanRight);
+			offset = tanLeft * distance - cameraSeparation / 2.0;
 			angleToTarget = (180/CV_PI) * atan(offset / distance);
 		}
 		else if (leftTracker.twoTargetsFound)

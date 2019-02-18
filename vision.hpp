@@ -16,26 +16,26 @@
 //const int LEFT_CAMERA_ID = 1, RIGHT_CAMERA_ID = 2;
 
 // Camera Parameters
-const double HORZ_DEGREES_PER_PIXEL = (70.42 / 640);    // degrees
-const double LEFT_MULTIPLIER = .875, RIGHT_MULTIPLIER = .875; //.764, RIGHT_MULTIPLIER = .875;
+const double HORZ_DEGREES_PER_PIXEL = 1;                        //left, right (70.42 / 640)
+const double LEFT_MULTIPLIER = 0.091, RIGHT_MULTIPLIER = 0.076; //.764, RIGHT_MULTIPLIER = .875;
 
 // Camera Configuration Parameters
-const double CALIBRATION_DISTANCE = 27.64;              //string len. in inches div. 2
-const double LEFT_BASE_ANGLE = 0, RIGHT_BASE_ANGLE = 0; // degrees
+const double CALIBRATION_DISTANCE = 27.64; //string len. in inches div. 2 (hypotenuse)
+//const double LEFT_BASE_ANGLE = 0, RIGHT_BASE_ANGLE = 0; // degrees
 
 // Camera Calibration Parameters
 // using T bracket
-const double LEFT_SEPARATION = 18.75 / 2;  //inches
-const double RIGHT_SEPARATION = 18.75 / 2; //inches
-const double TARGET_DISTANCE = 150;        //inches perpendicular
+const double LEFT_SEPARATION = 10.5;  //inches
+const double RIGHT_SEPARATION = 11.5; //inches
+const double TARGET_DISTANCE = 29;    //inches perpendicular
 const bool USE_T_CALIBRATION = true;
-const double CAMERA_SEPARATION = LEFT_SEPARATION + RIGHT_SEPARATION; // inches
+//const double CAMERA_SEPARATION = LEFT_SEPARATION + RIGHT_SEPARATION; // inches
 
 //OpenCV camera calc parameters
 const int OPENCV_WIDTH = 640, OPENCV_HEIGHT = 480;
 
 // Output stream parameters
-const int STREAM_WIDTH = 640*2, STREAM_HEIGHT = 480, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
+const int STREAM_WIDTH = 640 * 2, STREAM_HEIGHT = 480, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
 
 const cv::Scalar MIN_HSV(55, 80, 90);
 const cv::Scalar MAX_HSV(255, 255, 255);
