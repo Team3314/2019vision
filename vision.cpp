@@ -63,6 +63,7 @@ double angleFromPixels(double ctx) {
 	//double dot = dot_product(center, pixel);
 	double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
 	double alpha = (acos(dot / (point3fLength(center) * point3fLength(pixel))))*(180/CV_PI);
+	if (ctx<0) alpha = -alpha;
 	return alpha;
 }
 
