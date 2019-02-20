@@ -1,18 +1,10 @@
 #include "vision.hpp"
 
 //TODO
-//Hinting at other targets by pulling from net tables [may have idea down]
-//video conference style streaming [] / multiple outputs on one streamed mat [x]
+//Hinting at other targets by pulling from net tables [possibly]
+//video conference style streaming with RoIs []
 //GUI to fix thresholding []
 //Confidence levels []
-//calibration system with known distances [wip]
-
-//environ
-//command line flags to switch between robot mode/dev board mode []
-//static ip []
-
-//FIXME
-//flashing settings thru code only works on one camera []
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -55,6 +47,29 @@ void setVideoCaps(cv::VideoCapture &input)
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
 }
 
+double point3fLength(cv::Point3f point) {
+	return sqrt((point.x)*(point.x) + (point.y)*(point.y) + (point.z)*(point.z));
+}
+
+double angleFromPixels(double ctx) {
+	// Compute focal length in pixels from FOV
+	double f = (0.5 * OPENCV_WIDTH) / tan(0.5 * FOV_RADIANS);
+
+	// Vectors subtending image center and pixel from optical center
+	// in camera coordinates.
+	cv::Point3f center(0,0,f), pixel(ctx, 0, f);
+
+	// angle between vector (0, 0, f) and pixel
+	//double dot = dot_product(center, pixel);
+	double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
+	double alpha = (acos(dot / (point3fLength(center) * point3fLength(pixel))))*(180/CV_PI);
+	return alpha;
+}
+
+double angleFromRawPixels(double tx) {
+	return angleFromPixels(tx - (OPENCV_WIDTH/2));
+}
+
 class TargetTracker
 {
 	cv::VideoCapture input;
@@ -67,12 +82,19 @@ class TargetTracker
 
 	double baseOffset = 0;
 	double multiplier = 0;
+	
 	double targetX = 0;
 	double targetY = 0;
 	double centeredTargetX = 0;
 	double centeredTargetY = 0;
+	
 	double targetAngle = 0;
-	bool twoTargetsFound = false;
+	double leftTargetAngle = 0;
+	double rightTargetAngle = 0;
+
+	int targetsFound = 0;
+	bool hasLeft = false;
+	bool hasRight = false;
 	bool lowestAreaFilter = false;
 
 	TargetTracker(int Device, double BaseOffset, double Multiplier)
@@ -322,23 +344,34 @@ class TargetTracker
 				}
 				//std::cout << "Position: " << center.x << std::endl;
 			}
+			hasLeft = false, hasRight = false;
 			if (leftCenter.x != 0 && rightCenter.x != 0)
 			{
 				targetX = (rightCenter.x + leftCenter.x) / 2;
 				targetY = (rightCenter.y + leftCenter.y) / 2;
 				distance = (rightCenter.x - leftCenter.x) / 2;
-				twoTargetsFound = true;
+				//leftTargetAngle = (leftCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
+				//rightTargetAngle = (rightCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
+				leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
+				rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
+				targetsFound = 2;
+				hasLeft = true, hasRight = true;
 			}
 			else
 			{
-				twoTargetsFound = false;
 				if (rightCenter.x != 0)
 				{
 					targetX = rightCenter.x - distance;
+					rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
+					targetsFound = 1;
+					hasRight = true;
 				}
 				if (leftCenter.x != 0)
 				{
 					targetX = leftCenter.x + distance;
+					leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
+					targetsFound = 1;
+					hasLeft = true;
 				}
 			}
 		}
@@ -348,8 +381,13 @@ class TargetTracker
 		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
 		//std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
 		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
-		targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
+		//targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
+		targetAngle = angleFromPixels(centeredTargetX) + baseOffset;
 		//std::cout << "Target angle: " << targetAngle << std::endl;
+
+		if (best.size() == 0) {
+			targetsFound = 0, centeredTargetX = 0, centeredTargetY = 0, targetAngle = 0, hasLeft = false, hasRight = false;
+		}
 
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		//std::cout << t * 1000 << "ms" << std::endl;
@@ -359,18 +397,18 @@ class TargetTracker
 
 int main(int argc, char *argv[])
 {
-	int leftCameraID=0, rightCameraID=1;
-	bool robot, verbose, showOutputWindow;
-	std::string ntIP, streamIP;
-
 	// default to robot mode
-	robot = true;
-	verbose = false;
-	showOutputWindow = false;
-	ntIP = "10.33.14.2";
-	streamIP = "10.33.14.5";
-	leftCameraID = 0;
-	rightCameraID = 1;
+	bool robot = true;
+	bool verbose = false;
+	bool showOutputWindow = false;
+	std::string ntIP = "10.33.14.2";
+	std::string streamIP = "10.33.14.5";
+	int leftCameraID = 0;
+	int rightCameraID = 1;
+	double leftCameraAngle = 0;   //deg
+	double rightCameraAngle = 0;  //deg
+	double cameraSeparation = 22; //inches
+	double lastGoodDistance = -1;
 
 	std::vector<std::string> args(argv, argv + argc);
 	for (size_t i = 1; i < args.size(); ++i)
@@ -385,6 +423,9 @@ int main(int argc, char *argv[])
 			std::cout << "showoutput - show output window locally" << std::endl;
 			std::cout << "leftcameraid <id> - left camera id override" << std::endl;
 			std::cout << "rightcameraid <id> - right camera id override" << std::endl;
+			std::cout << "leftcameraangle <double> - left camera angle override" << std::endl;
+			std::cout << "rightcameraangle <double> - right camera angle override" << std::endl;
+			std::cout << "cameraseparation <double> - camera separation override" << std::endl;
 			std::cout << "" << std::endl;
 			return 0;
 		}
@@ -393,10 +434,13 @@ int main(int argc, char *argv[])
 			robot = false;
 			verbose = true;
 			showOutputWindow = true;
-			ntIP = "192.168.1.3";
-			streamIP = "192.168.1.3";
+			ntIP = "192.168.1.198";
+			streamIP = "192.168.1.198";
 			leftCameraID = 1;
 			rightCameraID = 2;
+			leftCameraAngle = 0;   //deg
+			rightCameraAngle = 0;  //deg
+			cameraSeparation = 22; //inches
 		}
 		if (args[i] == "robot")
 		{
@@ -407,34 +451,54 @@ int main(int argc, char *argv[])
 			streamIP = "10.33.14.5";
 			leftCameraID = 0;
 			rightCameraID = 1;
+			leftCameraAngle = 0;   //deg
+			rightCameraAngle = 0;  //deg
+			cameraSeparation = 22; //inches
 		}
-		if (args[i]=="ntip")
+		if (args[i] == "ntip")
 		{
-			ntIP = args[i+1];
+			ntIP = args[i + 1];
 		}
-		if (args[i]=="streamip")
+		if (args[i] == "streamip")
 		{
-			streamIP = args[i+1];
+			streamIP = args[i + 1];
 		}
-		if (args[i]=="showoutput")
+		if (args[i] == "showoutput")
 		{
 			showOutputWindow = true;
 		}
-		if (args[i]=="leftcameraid")
+		if (args[i] == "verbose")
 		{
-			leftCameraID = atoi(args[i+1].c_str());
+			verbose = true;
 		}
-		if (args[i]=="rightcameraid")
+		if (args[i] == "leftcameraid")
 		{
-			rightCameraID = atoi(args[i+1].c_str());
+			leftCameraID = atoi(args[i + 1].c_str());
+		}
+		if (args[i] == "rightcameraid")
+		{
+			rightCameraID = atoi(args[i + 1].c_str());
+		}
+		if (args[i] == "leftcameraangle")
+		{
+			leftCameraAngle = stod(args[i + 1]);
+		}
+		if (args[i] == "rightcameraangle")
+		{
+			rightCameraAngle = stod(args[i + 1]);
+		}
+		if (args[i] == "cameraseparation")
+		{
+			cameraSeparation = stod(args[i + 1]);
 		}
 	}
 
 	// output this always...
-	//if (!robot) 
+	//if (!robot)
 	//{
-		std::cout << "LeftCameraID: " << leftCameraID << "  RightCameraID: " << rightCameraID << std::endl;
-		std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl; 
+	std::cout << "LeftCameraID: " << leftCameraID << "  RightCameraID: " << rightCameraID << std::endl;
+	std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl;
+	std::cout << "LeftCameraAngle: " << leftCameraAngle << " RightCameraAngle: " << rightCameraAngle << " CameraSeparation: " << cameraSeparation << std::endl;
 	//}
 
 	CvVideoWriter_GStreamer mywriter;
@@ -449,25 +513,25 @@ int main(int argc, char *argv[])
 
 	long increment = 0;
 
-	TargetTracker leftTracker(leftCameraID, LEFT_BASE_ANGLE, LEFT_MULTIPLIER);
-	TargetTracker rightTracker(rightCameraID, RIGHT_BASE_ANGLE, RIGHT_MULTIPLIER);
+	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER);
+	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER);
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
 	NetworkTable::SetDSClientEnabled(false);
 	NetworkTable::SetIPAddress(llvm::StringRef(ntIP));
 	NetworkTable::Initialize();
-	myNetTable = NetworkTable::GetTable("SmartDashboard");
+	myNetTable = NetworkTable::GetTable("SmartDashboard/jetson");
 
 	bool hintingExample;
 
 	for (;;)
 	{
-		double distance = 0;
-		double offset = 0;
-		double angleToTarget = 0;
+		double distance = -1;
+		double offset = -1;
+		double angleToTarget = -1;
 		hintingExample = myNetTable->GetBoolean("Lowest area test", false);
-		leftTracker.lowestAreaFilter = !hintingExample;
+		leftTracker.lowestAreaFilter = hintingExample;
 		rightTracker.lowestAreaFilter = hintingExample;
 
 		leftTracker.capture();
@@ -475,7 +539,7 @@ int main(int argc, char *argv[])
 		leftTracker.analyze();
 		rightTracker.analyze();
 
-		if (!robot)
+		if (verbose)
 		{
 			std::cout << "\nIncrement: " << increment << std::endl;
 			std::cout << "LEFT" << std::endl;
@@ -486,39 +550,61 @@ int main(int argc, char *argv[])
 			std::cout << "Target angle: " << rightTracker.targetAngle << std::endl;
 		}
 
-		distance = -1;
-		offset = 0;
-		if (leftTracker.twoTargetsFound && rightTracker.twoTargetsFound)
+		if (leftTracker.targetsFound == 2 && rightTracker.targetsFound == 2)
 		{
 			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
 			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
 			//std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
-			distance = CAMERA_SEPARATION / (tanLeft + tanRight);
-
-			offset = tanLeft * distance - LEFT_SEPARATION / 2.0;
-			angleToTarget = (180 / CV_PI) * atan(offset / distance);
+			distance = (cameraSeparation / (tanLeft + tanRight)) - 5; //subtract dist from frame
+			lastGoodDistance = distance;
+			//offset = tanLeft * distance - cameraSeparation/2;
+			angleToTarget = ((180 / CV_PI) * atan((tanLeft*distance-cameraSeparation/2) / distance) +
+								(180 / CV_PI) * atan((tanRight*distance+cameraSeparation/2) / distance))/2;
 		}
-		else if (leftTracker.twoTargetsFound)
+		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1 && leftTracker.hasLeft && rightTracker.hasRight)
 		{
-			angleToTarget = leftTracker.targetAngle;
+			angleToTarget = leftTracker.leftTargetAngle + rightTracker.rightTargetAngle;
 		}
-		else if (rightTracker.twoTargetsFound)
+		else if (leftTracker.targetsFound == 2)
+		{
+			if (lastGoodDistance>36) {
+				angleToTarget = 10;
+			}
+		}
+		else if (rightTracker.targetsFound == 2)
+		{
+			if (lastGoodDistance>36) {
+				angleToTarget = -10;
+			}
+		}
+		/*
+		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1)
+		{
+			angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
+		}*/
+		/*else if (rightTracker.targetsFound == 2)
 		{
 			angleToTarget = rightTracker.targetAngle;
-		}
+		}*/
 
 		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		myNetTable->PutNumber("Left targetX", leftTracker.centeredTargetX);
 		myNetTable->PutNumber("Left targetY", leftTracker.centeredTargetY);
-		myNetTable->PutBoolean("Left twoTargetsFound", leftTracker.twoTargetsFound);
+		myNetTable->PutNumber("Left targetsFound", leftTracker.targetsFound);
+		myNetTable->PutBoolean("Left hasLeft", leftTracker.hasLeft);
+		myNetTable->PutBoolean("Left hasRight", leftTracker.hasRight);
+
 		myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
 		myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
-		myNetTable->PutBoolean("Right twoTargetsFound", rightTracker.twoTargetsFound);
+		myNetTable->PutNumber("Right targetsFound", rightTracker.targetsFound);
+		myNetTable->PutBoolean("Right hasLeft", rightTracker.hasLeft);
+		myNetTable->PutBoolean("Right hasRight", rightTracker.hasRight);
+
 		myNetTable->PutNumber("Distance", distance);
 		myNetTable->PutNumber("Offset", offset);
 		myNetTable->PutNumber("Angle To Target", angleToTarget);
 
-		if (!robot)
+		if (verbose)
 		{
 			std::cout << "COMBINED" << std::endl;
 			std::cout << "Combined distance: " << distance << std::endl;
