@@ -62,7 +62,16 @@ double angleFromPixels(double ctx) {
 	// angle between vector (0, 0, f) and pixel
 	//double dot = dot_product(center, pixel);
 	double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
+
+	// TODO: Possibly replace dot with f*f
+	// TODO: Possibly replace point3fLength() with cv::norm()
 	double alpha = (acos(dot / (point3fLength(center) * point3fLength(pixel))))*(180/CV_PI);
+
+	// The dot product will always return a cos>0 
+	// when the vectors are pointing in the same general
+	// direction. 
+	// This means that no ctx will produce a negative value.
+	// We need to force the value negative to indicate "to the left".
 	if (ctx<0) alpha = -alpha;
 	return alpha;
 }
@@ -556,6 +565,11 @@ int main(int argc, char *argv[])
 			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
 			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
 			//std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
+			
+			// TODO: distance can't be modifed here, 
+			// because it is used in the calculations below. 
+			// This needs to remain the camera distance for now. 
+			// Maybe split it out... camDistance and botDistance?  
 			distance = (cameraSeparation / (tanLeft + tanRight)) - 5; //subtract dist from frame
 			lastGoodDistance = distance;
 			//offset = tanLeft * distance - cameraSeparation/2;
