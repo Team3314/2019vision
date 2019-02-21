@@ -48,6 +48,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/cal.dir/DependInfo.cmake"
   "CMakeFiles/viz.dir/DependInfo.cmake"
+  "CMakeFiles/cal.dir/DependInfo.cmake"
+  "CMakeFiles/camtest.dir/DependInfo.cmake"
   )

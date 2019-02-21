@@ -12,6 +12,8 @@ add_executable (viz vision.cpp vision.hpp cap_gstreamer.cpp cap_gstreamer.hpp cv
 
 add_executable (cal calibrate.cpp vision.hpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
 
+add_executable (camtest camtest.cpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
+
 find_library(LibNT ntcore "/3314/ntcore/")
 
 find_library(GST HINT gst PATHS "/usr/lib/aarch64-linux-gnu/gstreamer-1.0/")
@@ -19,3 +21,5 @@ find_library(GST HINT gst PATHS "/usr/lib/aarch64-linux-gnu/gstreamer-1.0/")
 target_link_libraries(viz ${OpenCV_LIBS} ${LibNT} "/usr/lib/aarch64-linux-gnu/libgstreamer-1.0.so" "/usr/lib/aarch64-linux-gnu/libgobject-2.0.so" "/usr/lib/aarch64-linux-gnu/libglib-2.0.so" "/usr/lib/aarch64-linux-gnu/libgstapp-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstriff-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstbase-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstvideo-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstpbutils-1.0.so")
 
 target_link_libraries(cal ${OpenCV_LIBS} ${LibNT} "/usr/lib/aarch64-linux-gnu/libgstreamer-1.0.so" "/usr/lib/aarch64-linux-gnu/libgobject-2.0.so" "/usr/lib/aarch64-linux-gnu/libglib-2.0.so" "/usr/lib/aarch64-linux-gnu/libgstapp-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstriff-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstbase-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstvideo-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstpbutils-1.0.so")
+
+target_link_libraries(camtest ${OpenCV_LIBS} ${LibNT} "/usr/lib/aarch64-linux-gnu/libgstreamer-1.0.so" "/usr/lib/aarch64-linux-gnu/libgobject-2.0.so" "/usr/lib/aarch64-linux-gnu/libglib-2.0.so" "/usr/lib/aarch64-linux-gnu/libgstapp-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstriff-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstbase-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstvideo-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstpbutils-1.0.so")

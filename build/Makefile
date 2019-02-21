@@ -111,6 +111,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named viz
+
+# Build rule for target.
+viz: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 viz
+.PHONY : viz
+
+# fast build rule for target.
+viz/fast:
+	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/build
+.PHONY : viz/fast
+
+#=============================================================================
 # Target rules for targets named cal
 
 # Build rule for target.
@@ -124,17 +137,17 @@ cal/fast:
 .PHONY : cal/fast
 
 #=============================================================================
-# Target rules for targets named viz
+# Target rules for targets named camtest
 
 # Build rule for target.
-viz: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 viz
-.PHONY : viz
+camtest: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 camtest
+.PHONY : camtest
 
 # fast build rule for target.
-viz/fast:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/build
-.PHONY : viz/fast
+camtest/fast:
+	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/build
+.PHONY : camtest/fast
 
 calibrate.o: calibrate.cpp.o
 
@@ -163,14 +176,42 @@ calibrate.cpp.s:
 	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/calibrate.cpp.s
 .PHONY : calibrate.cpp.s
 
+camtest.o: camtest.cpp.o
+
+.PHONY : camtest.o
+
+# target to build an object file
+camtest.cpp.o:
+	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/camtest.cpp.o
+.PHONY : camtest.cpp.o
+
+camtest.i: camtest.cpp.i
+
+.PHONY : camtest.i
+
+# target to preprocess a source file
+camtest.cpp.i:
+	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/camtest.cpp.i
+.PHONY : camtest.cpp.i
+
+camtest.s: camtest.cpp.s
+
+.PHONY : camtest.s
+
+# target to generate assembly for a file
+camtest.cpp.s:
+	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/camtest.cpp.s
+.PHONY : camtest.cpp.s
+
 cap_gstreamer.o: cap_gstreamer.cpp.o
 
 .PHONY : cap_gstreamer.o
 
 # target to build an object file
 cap_gstreamer.cpp.o:
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.o
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.o
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.o
+	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.o
 .PHONY : cap_gstreamer.cpp.o
 
 cap_gstreamer.i: cap_gstreamer.cpp.i
@@ -179,8 +220,9 @@ cap_gstreamer.i: cap_gstreamer.cpp.i
 
 # target to preprocess a source file
 cap_gstreamer.cpp.i:
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.i
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.i
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.i
+	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.i
 .PHONY : cap_gstreamer.cpp.i
 
 cap_gstreamer.s: cap_gstreamer.cpp.s
@@ -189,8 +231,9 @@ cap_gstreamer.s: cap_gstreamer.cpp.s
 
 # target to generate assembly for a file
 cap_gstreamer.cpp.s:
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.s
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.s
+	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.s
+	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.s
 .PHONY : cap_gstreamer.cpp.s
 
 vision.o: vision.cpp.o
@@ -227,12 +270,16 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
-	@echo "... rebuild_cache"
-	@echo "... cal"
 	@echo "... viz"
+	@echo "... cal"
+	@echo "... camtest"
+	@echo "... rebuild_cache"
 	@echo "... calibrate.o"
 	@echo "... calibrate.i"
 	@echo "... calibrate.s"
+	@echo "... camtest.o"
+	@echo "... camtest.i"
+	@echo "... camtest.s"
 	@echo "... cap_gstreamer.o"
 	@echo "... cap_gstreamer.i"
 	@echo "... cap_gstreamer.s"
