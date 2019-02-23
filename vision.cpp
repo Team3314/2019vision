@@ -1,10 +1,13 @@
 #include "vision.hpp"
 
 //TODO
-//Hinting at other targets by pulling from net tables [possibly]
-//video conference style streaming with RoIs []
+//PRIORITY: try-catch to find device ids (in case it crashes so it doesnt crash) []
+//PRIORITY: video conference style streaming with RoIs [x]
+//PRIORITY: change to best resolution(+fix consts) []
+//Hinting at other targets by pulling from net tables []
 //GUI to fix thresholding []
 //Confidence levels []
+//PRIORITY: new rejections: targets w/ sig. size and y-coord differentials, left/right flipped []
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -61,11 +64,12 @@ double angleFromPixels(double ctx) {
 
 	// angle between vector (0, 0, f) and pixel
 	//double dot = dot_product(center, pixel);
-	double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
+	//double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
+	double dot = f*f;
 
 	// TODO: Possibly replace dot with f*f
 	// TODO: Possibly replace point3fLength() with cv::norm()
-	double alpha = (acos(dot / (point3fLength(center) * point3fLength(pixel))))*(180/CV_PI);
+	double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel))))*(180/CV_PI);
 
 	// The dot product will always return a cos>0 
 	// when the vectors are pointing in the same general
@@ -141,7 +145,6 @@ class TargetTracker
 		cv::normalize(source, source, 0, 255, cv::NORM_MINMAX);
 
 		//cv::Mat output = source.clone(), poss = source.clone();
-		cv::Mat poss = source.clone();
 		cv::Mat hsv;
 		//cv::Mat noise;
 
@@ -226,37 +229,10 @@ class TargetTracker
 			//Draws mininum area rects. and centers for possible goals
 			for (size_t i = 0; i < possible.size(); i++)
 			{
-				cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
-				cv::Point2f pts[4];
-				rrect.points(pts);
-				cv::Point2f center = rrect.center;
-
-				for (unsigned int j = 0; j < 4; ++j)
-				{
-					cv::line(poss, pts[j], pts[(j + 1) % 4], BLACK);
-					//double ratio = angle(pts[(j+1)%4], pts[(j+2)%4], pts[j]);
-					//std::cout << "Ratio: " << ratio << "; ";
-				}
-
-				//Commented out but this is distinguish L/R code
-				//Centers are red
-				cv::circle(poss, center, 2, RED);
-
-				for (unsigned int j = 0; j < 4; ++j)
-				{
-					//Rights are magenta
-					if (pts[0].x < pts[2].x)
-					{
-						cv::line(poss, pts[j], pts[(j + 1) % 4], PINK, 2);
-					}
-					//Lefts are black
-					else
-					{
-						cv::line(poss, pts[j], pts[(j + 1) % 4], BLUE, 2);
-					}
-				}
-				//cv::imshow("Possible", poss);
-
+				//cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
+				//cv::Point2f pts[4];
+				//rrect.points(pts);
+				//cv::Point2f center = rrect.center;
 				double area = cv::contourArea(possible[i]);
 				//std::cout << "Lowest area filter on: " << lowestAreaFilter << std::endl;
 				if (lowestAreaFilter) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
@@ -407,6 +383,25 @@ class TargetTracker
 
 int main(int argc, char *argv[])
 {
+	/*def clearCapture(capture):
+    capture.release()
+    cv2.destroyAllWindows()
+
+def countCameras():
+    n = 0
+    for i in range(10):
+        try:
+            cap = cv2.VideoCapture(i)
+            ret, frame = cap.read()
+            cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            clearCapture(cap)
+            n += 1
+        except:
+            clearCapture(cap)
+            break
+    return n*/
+
+
 	// default to robot mode
 	bool robot = true;
 	bool verbose = false;
@@ -415,6 +410,8 @@ int main(int argc, char *argv[])
 	std::string streamIP = "10.33.14.5";
 	int leftCameraID = 0;
 	int rightCameraID = 1;
+	int frontCameraID = 2;
+	int backCameraID = 3;
 	double leftCameraAngle = 0;   //deg
 	double rightCameraAngle = 0;  //deg
 	double cameraSeparation = 22; //inches
@@ -446,8 +443,10 @@ int main(int argc, char *argv[])
 			showOutputWindow = true;
 			ntIP = "192.168.1.198";
 			streamIP = "192.168.1.198";
-			leftCameraID = 1;
-			rightCameraID = 2;
+			leftCameraID = 0;
+			rightCameraID = 1;
+			frontCameraID = 2;
+			backCameraID = 3;
 			leftCameraAngle = 0;   //deg
 			rightCameraAngle = 0;  //deg
 			cameraSeparation = 22; //inches
@@ -461,6 +460,8 @@ int main(int argc, char *argv[])
 			streamIP = "10.33.14.5";
 			leftCameraID = 0;
 			rightCameraID = 1;
+			frontCameraID = 2;
+			backCameraID = 3;
 			leftCameraAngle = 0;   //deg
 			rightCameraAngle = 0;  //deg
 			cameraSeparation = 22; //inches
@@ -489,6 +490,14 @@ int main(int argc, char *argv[])
 		{
 			rightCameraID = atoi(args[i + 1].c_str());
 		}
+		if (args[i] == "frontcameraid")
+		{
+			frontCameraID = atoi(args[i + 1].c_str());
+		}
+		if (args[i] == "backcameraid")
+		{
+			backCameraID = atoi(args[i + 1].c_str());
+		}
 		if (args[i] == "leftcameraangle")
 		{
 			leftCameraAngle = stod(args[i + 1]);
@@ -506,7 +515,7 @@ int main(int argc, char *argv[])
 	// output this always...
 	//if (!robot)
 	//{
-	std::cout << "LeftCameraID: " << leftCameraID << "  RightCameraID: " << rightCameraID << std::endl;
+	std::cout << "LeftCameraID: " << leftCameraID << "  RightCameraID: " << rightCameraID << "  FrontCameraID: " << frontCameraID << "  BackCameraID: " << backCameraID << std::endl;
 	std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl;
 	std::cout << "LeftCameraAngle: " << leftCameraAngle << " RightCameraAngle: " << rightCameraAngle << " CameraSeparation: " << cameraSeparation << std::endl;
 	//}
@@ -521,10 +530,16 @@ int main(int argc, char *argv[])
 	mywriter.open(write_pipeline.c_str(),
 				  0, FRAMERATE, cv::Size(STREAM_WIDTH, STREAM_HEIGHT), true);
 
-	long increment = 0;
+	long long increment = 0;
 
 	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER);
 	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER);
+	cv::VideoCapture frontCamera(frontCameraID);
+	//cv::VideoCapture backCamera(backCameraID);
+	cv::Mat frontImg, backImg;
+	setVideoCaps(frontCamera);
+	//setVideoCaps(backCamera);
+	
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
@@ -538,6 +553,7 @@ int main(int argc, char *argv[])
 	for (;;)
 	{
 		double distance = -1;
+		double botDistance = -1;
 		double offset = -1;
 		double angleToTarget = -1;
 		hintingExample = myNetTable->GetBoolean("Lowest area test", false);
@@ -546,6 +562,8 @@ int main(int argc, char *argv[])
 
 		leftTracker.capture();
 		rightTracker.capture();
+		frontCamera.read(frontImg);
+		//backCamera.read(backImg);
 		leftTracker.analyze();
 		rightTracker.analyze();
 
@@ -570,8 +588,9 @@ int main(int argc, char *argv[])
 			// because it is used in the calculations below. 
 			// This needs to remain the camera distance for now. 
 			// Maybe split it out... camDistance and botDistance?  
-			distance = (cameraSeparation / (tanLeft + tanRight)) - 5; //subtract dist from frame
+			distance = (cameraSeparation / (tanLeft + tanRight)); //subtract dist from frame (5in)
 			lastGoodDistance = distance;
+			botDistance = distance - 5;
 			//offset = tanLeft * distance - cameraSeparation/2;
 			angleToTarget = ((180 / CV_PI) * atan((tanLeft*distance-cameraSeparation/2) / distance) +
 								(180 / CV_PI) * atan((tanRight*distance+cameraSeparation/2) / distance))/2;
@@ -634,13 +653,38 @@ int main(int argc, char *argv[])
 			IplImage outImage = (IplImage)leftTracker.output;
 			mywriter.writeFrame(&outImage); //write output image over network
 		}
-		cv::Mat combine;
-		cv::hconcat(leftTracker.output, rightTracker.output, combine);
+		cv::Mat combine(240, 480, CV_8UC3);
+		int primary = myNetTable->GetNumber("Primary img", -1);		
+		switch (primary) {
+		case 0:
+		break;	
+		case 1:
+		break;
+		case 2:
+		break;
+		case 3:
+		break;
+		default:
+		cv::Rect ROI1(0, 0, 320, 240);
+    		cv::Mat temp;
+		cv::resize(frontImg,temp,cv::Size(ROI1.width, ROI1.height));
+    		temp.copyTo(combine(ROI1));
+		cv::Rect ROI2(320, 0, 160, 120);
+		cv::resize(leftTracker.output,temp,cv::Size(ROI2.width, ROI2.height));
+ 		temp.copyTo(combine(ROI2));
+		cv::Rect ROI3(320, 120, 160, 120);
+		cv::resize(rightTracker.output,temp,cv::Size(ROI3.width, ROI3.height));
+ 		temp.copyTo(combine(ROI3));
+		break;
+		}		
+		//cv::hconcat(leftTracker.output, rightTracker.output, combine);
 		//cv::imshow("Left Output", leftTracker.output);
 		//cv::imshow("Right Output", rightTracker.output);
 		if (showOutputWindow)
 		{
 			cv::imshow("Output", combine);
+			//cv::imshow("front", frontImg);
+			//cv::imshow("back", backImg);
 		}
 
 		increment++;
