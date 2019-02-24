@@ -57,6 +57,7 @@ void setVideoCaps(cv::VideoCapture &input)
 class TargetTracker
 {
 	cv::VideoCapture input;
+
   public:
 	long frame;
 	int device;
@@ -73,7 +74,6 @@ class TargetTracker
 	bool twoTargetsFound = false;
 	int leftCameraID, rightCameraID;
 	double cameraSeparation;
-
 
 	TargetTracker(int Device, double BaseOffset, double CameraSeparation, double Multiplier, int LeftCameraID, int RightCameraID)
 		: input(Device)
@@ -177,8 +177,8 @@ class TargetTracker
 			if (rect.width > rect.height)
 				continue;
 			//std::cout << "Width: " << rect.width << " Height: " << rect.height << std::endl;
-		//	if (offset < MIN_OFFSET || offset > MAX_OFFSET)
-		//		continue;
+			//	if (offset < MIN_OFFSET || offset > MAX_OFFSET)
+			//		continue;
 			//std::cout << "Offset: " << offset << std::endl;
 			//if (cRatio < 0.2 || cRatio > 0.6) continue;
 
@@ -204,7 +204,7 @@ class TargetTracker
 
 				for (unsigned int j = 0; j < 4; ++j)
 				{
-					cv::line(poss, pts[j], pts[(j + 1) % 4], BLACK);
+					cv::line(poss, pts[j], pts[(j + 1) % 4], WHITE);
 					//double ratio = angle(pts[(j+1)%4], pts[(j+2)%4], pts[j]);
 					//std::cout << "Ratio: " << ratio << "; ";
 				}
@@ -271,7 +271,7 @@ class TargetTracker
 					rrect.points(pts);
 					for (unsigned int j = 0; j < 4; ++j)
 					{
-						cv::line(output, pts[j], pts[(j + 1) % 4], BLACK, 2);
+						cv::line(output, pts[j], pts[(j + 1) % 4], WHITE, 2);
 					}
 				}
 			}
@@ -329,27 +329,27 @@ class TargetTracker
 
 		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
 		std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
-		if (USE_T_CALIBRATION) 
+		if (USE_T_CALIBRATION)
 		{
 			double cameraAngle;
 			double inCameraAngle;
-			double angleToTarget;	
-			if(device==leftCameraID) 
+			double angleToTarget;
+			if (device == leftCameraID)
 			{
-				angleToTarget = atan(TARGET_DISTANCE/LEFT_SEPARATION) *(180.0/CV_PI);
-				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier;
-				cameraAngle = angleToTarget+inCameraAngle;
+				angleToTarget = atan(TARGET_DISTANCE / LEFT_SEPARATION) * (180.0 / CV_PI);
+				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL * multiplier;
+				cameraAngle = angleToTarget + inCameraAngle;
 			}
-			if(device==rightCameraID) 
+			if (device == rightCameraID)
 			{
-				angleToTarget = atan(TARGET_DISTANCE/RIGHT_SEPARATION) *(180.0/CV_PI);
-				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier;
-				cameraAngle = angleToTarget-inCameraAngle;
+				angleToTarget = atan(TARGET_DISTANCE / RIGHT_SEPARATION) * (180.0 / CV_PI);
+				inCameraAngle = (centeredTargetX)*HORZ_DEGREES_PER_PIXEL * multiplier;
+				cameraAngle = angleToTarget - inCameraAngle;
 			}
 			std::cout << "angle to target: " << angleToTarget << std::endl;
 			std::cout << "in Camera Angle: " << inCameraAngle << std::endl;
-			std::cout << "Camera Angle: " << cameraAngle << "   " << 90-cameraAngle << std::endl;
-			std::cout << "deg/px " << 1/(fabs(centeredTargetX) / (90-angleToTarget)) << std::endl;
+			std::cout << "Camera Angle: " << cameraAngle << "   " << 90 - cameraAngle << std::endl;
+			std::cout << "deg/px " << 1 / (fabs(centeredTargetX) / (90 - angleToTarget)) << std::endl;
 		}
 		else
 		{
@@ -359,23 +359,25 @@ class TargetTracker
 			//(aot - ca)*(width/hfov)=pixel offset from 0
 
 			double cameraAngle;
-			double perpDist = sqrt((CALIBRATION_DISTANCE)*(CALIBRATION_DISTANCE) - (cameraSeparation/2)*(cameraSeparation/2));
+			double perpDist = sqrt((CALIBRATION_DISTANCE) * (CALIBRATION_DISTANCE) - (cameraSeparation / 2) * (cameraSeparation / 2));
 			std::cout << "Perp dist: " << perpDist << std::endl;
 			//separation/2 defined in header
-			double angleToTarg = atan(perpDist / (cameraSeparation/2)) * (180/CV_PI);
+			double angleToTarg = atan(perpDist / (cameraSeparation / 2)) * (180 / CV_PI);
 			std::cout << "Calc'd angle to target: " << angleToTarg << std::endl;
-			if (device == rightCameraID) {
-				cameraAngle = -angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier);
-			} else {
-				cameraAngle = angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL*multiplier);
+			if (device == rightCameraID)
+			{
+				cameraAngle = -angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL * multiplier);
+			}
+			else
+			{
+				cameraAngle = angleToTarg + ((centeredTargetX)*HORZ_DEGREES_PER_PIXEL * multiplier);
 			}
 			std::cout << "Calculated camera angle: " << cameraAngle << std::endl;
-
-		}	
+		}
 		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
-		targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL*multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
-			//std::cout << "Target angle: " << targetAngle << std::endl;
-	
+		targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
+																						  //std::cout << "Target angle: " << targetAngle << std::endl;
+
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		std::cout << t * 1000 << "ms" << std::endl;
 		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
@@ -392,8 +394,8 @@ int main(int argc, char *argv[])
 	std::string streamIP = "10.33.14.5";
 	int leftCameraID = 0;
 	int rightCameraID = 1;
-	double leftCameraAngle = 0; //deg
-	double rightCameraAngle = 0; //deg
+	double leftCameraAngle = 0;   //deg
+	double rightCameraAngle = 0;  //deg
 	double cameraSeparation = 22; //inches
 
 	std::vector<std::string> args(argv, argv + argc);
@@ -424,8 +426,8 @@ int main(int argc, char *argv[])
 			streamIP = "192.168.1.198";
 			leftCameraID = 1;
 			rightCameraID = 2;
-			leftCameraAngle = 0; //deg
-			rightCameraAngle = 0; //deg
+			leftCameraAngle = 0;   //deg
+			rightCameraAngle = 0;  //deg
 			cameraSeparation = 22; //inches
 		}
 		if (args[i] == "robot")
@@ -437,41 +439,41 @@ int main(int argc, char *argv[])
 			streamIP = "10.33.14.5";
 			leftCameraID = 0;
 			rightCameraID = 1;
-			leftCameraAngle = 0; //deg
-			rightCameraAngle = 0; //deg
+			leftCameraAngle = 0;   //deg
+			rightCameraAngle = 0;  //deg
 			cameraSeparation = 22; //inches
 		}
-		if (args[i]=="ntip")
+		if (args[i] == "ntip")
 		{
-			ntIP = args[i+1];
+			ntIP = args[i + 1];
 		}
-		if (args[i]=="streamip")
+		if (args[i] == "streamip")
 		{
-			streamIP = args[i+1];
+			streamIP = args[i + 1];
 		}
-		if (args[i]=="showoutput")
+		if (args[i] == "showoutput")
 		{
 			showOutputWindow = true;
 		}
-		if (args[i]=="leftcameraid")
+		if (args[i] == "leftcameraid")
 		{
-			leftCameraID = atoi(args[i+1].c_str());
+			leftCameraID = atoi(args[i + 1].c_str());
 		}
-		if (args[i]=="rightcameraid")
+		if (args[i] == "rightcameraid")
 		{
-			rightCameraID = atoi(args[i+1].c_str());
+			rightCameraID = atoi(args[i + 1].c_str());
 		}
-		if (args[i]=="leftcameraangle")
+		if (args[i] == "leftcameraangle")
 		{
-			leftCameraAngle = stod(args[i+1]);
+			leftCameraAngle = stod(args[i + 1]);
 		}
-		if (args[i]=="rightcameraangle")
+		if (args[i] == "rightcameraangle")
 		{
-			rightCameraAngle = stod(args[i+1]);
+			rightCameraAngle = stod(args[i + 1]);
 		}
-		if (args[i]=="cameraseparation")
+		if (args[i] == "cameraseparation")
 		{
-			cameraSeparation = stod(args[i+1]);
+			cameraSeparation = stod(args[i + 1]);
 		}
 	}
 
@@ -511,17 +513,17 @@ int main(int argc, char *argv[])
 		std::cout << "LEFT" << std::endl;
 		leftTracker.analyze();
 		std::cout << "RIGHT" << std::endl;
-		rightTracker.analyze();	
+		rightTracker.analyze();
 
 		distance = -1;
 		offset = 0;
 		if (leftTracker.twoTargetsFound && rightTracker.twoTargetsFound)
 		{
-			double tanLeft = tan((CV_PI/180)*leftTracker.targetAngle);
-			double tanRight = tan((CV_PI/180)*-rightTracker.targetAngle);
+			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
+			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
 			distance = cameraSeparation / (tanLeft + tanRight);
 			offset = tanLeft * distance - cameraSeparation / 2.0;
-			angleToTarget = (180/CV_PI) * atan(offset / distance);
+			angleToTarget = (180 / CV_PI) * atan(offset / distance);
 		}
 		else if (leftTracker.twoTargetsFound)
 		{

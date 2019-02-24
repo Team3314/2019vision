@@ -25,16 +25,16 @@ const double CALIBRATION_DISTANCE = 27.64; //string len. in inches div. 2 (hypot
 
 // Camera Calibration Parameters
 // using T bracket
-const double LEFT_SEPARATION = 22-9.75;  //inches
-const double RIGHT_SEPARATION = 9.75; //inches
-const double TARGET_DISTANCE = 20.25;    //inches perpendicular
+const double LEFT_SEPARATION = 22 - 9.75; //inches
+const double RIGHT_SEPARATION = 9.75;     //inches
+const double TARGET_DISTANCE = 20.25;     //inches perpendicular
 const bool USE_T_CALIBRATION = true;
 //const double CAMERA_SEPARATION = LEFT_SEPARATION + RIGHT_SEPARATION; // inches
 
 //OpenCV camera calc parameters
 const int OPENCV_WIDTH = 640, OPENCV_HEIGHT = 360;
 
-const double FOV_RADIANS = (LEFT_MULTIPLIER + RIGHT_MULTIPLIER)/2 * OPENCV_WIDTH * (CV_PI/180);
+const double FOV_RADIANS = (LEFT_MULTIPLIER + RIGHT_MULTIPLIER) / 2 * OPENCV_WIDTH * (CV_PI / 180);
 
 // Output stream parameters
 const int STREAM_WIDTH = 480, STREAM_HEIGHT = 240, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
@@ -44,9 +44,9 @@ const cv::Scalar MAX_HSV(255, 255, 255);
 
 const double MIN_ASPECT_RATIO = 0.2, MAX_ASPECT_RATIO = 0.6, MIN_AREA_RATIO = 0.5, MIN_AREA = 25, MIN_OFFSET = 3, MAX_OFFSET = 25;
 
-const cv::Scalar BLACK(0, 0, 0);
+const cv::Scalar WHITE(255, 255, 255);
 const cv::Scalar RED(0, 0, 255);
 const cv::Scalar PINK(255, 0, 255);
-const cv::Scalar BLUE(255, 0, 0);
+const cv::Scalar BLUE(0, 255, 255); //actually yellow
 
 #endif

@@ -1,7 +1,8 @@
 #include "vision.hpp"
 
 //TODO
-//PRIORITY: change to best resolution(+fix consts) [x]
+//time frame grabs []
+//finish switching cameras []
 //Hinting at other targets by pulling from net tables []
 //GUI to fix thresholding []
 //Confidence levels []
@@ -328,7 +329,7 @@ class TargetTracker
 				}
 			}*/
 
-			for (size_t i = 0; i < possible.size(); i++)
+			/*for (size_t i = 0; i < possible.size(); i++)
 			{
 				if (possible[i] != firstBest && possible[i] != secondBest)
 				{
@@ -340,36 +341,103 @@ class TargetTracker
 						cv::line(output, pts[j], pts[(j + 1) % 4], BLACK, 2);
 					}
 				}
-			}
+			}*/
 
-			t4 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+			//t4 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+
+			cv::RotatedRect rrect[2];
+			bool isLeft[2];
+			double area[2];
+			double height[2];
 
 			cv::Point2f rightCenter, leftCenter;
 			for (size_t i = 0; i < best.size(); i++)
 			{
-				cv::RotatedRect rrect = cv::minAreaRect(best[i]);
+				rrect[i] = cv::minAreaRect(best[i]);
 				cv::Point2f pts[4];
-				rrect.points(pts);
-				cv::Point2f center = rrect.center;
+				rrect[i].points(pts);
+				cv::Point2f center = rrect[i].center;
+				double rHeight = cv::norm(pts[1] - pts[0]);
+				double rWidth = cv::norm(pts[2] - pts[1]);
+				area[i] = rWidth * rHeight;
+				if (rHeight >= rWidth)
+				{
+					height[i] = rHeight;
+				}
+				else
+				{
+					height[i] = rWidth;
+				}
+
+				cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
+				cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
+
+				cv::Point2f usedEdge = edge1;
+				if (cv::norm(edge2) > cv::norm(edge1))
+					usedEdge = edge2;
+
+				cv::Point2f ref = cv::Vec2f(1, 0); /*Horizontal edge*/
+
+				float angle = 180.0f / CV_PI * acos((ref.x * usedEdge.x + ref.y * usedEdge.y) / (cv::norm(ref) * cv::norm(usedEdge)));
+
 				cv::circle(output, center, 2, RED);
 				//Point 0 is the lowest point, height is distance between 0 and 1, width is distance between 1 and 2
 				for (unsigned int j = 0; j < 4; ++j)
 				{
-					if (pts[0].x < pts[2].x)
+					//if (pts[0].x < pts[2].x)
+					if (angle > 90)
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,255), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], PINK, 2);
+						cv::line(output, pts[j], pts[(j + 1) % 4], PINK, 5);
 						rightCenter = center;
+						isLeft[i] = false;
 					}
 					else
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,0), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], BLUE, 2);
+						cv::line(output, pts[j], pts[(j + 1) % 4], BLUE, 5);
 						leftCenter = center;
+						isLeft[i] = true;
 					}
 				}
 				//std::cout << "Position: " << center.x << std::endl;
 			}
+
+			//check if within 80% of firstbest's area
+			//if secondbest center is +/- best center/2
+			//need area/boundingbox of both
+			//is left target is left of right target
+			if (best.size() == 2)
+			{
+				if (area[1] < 0.8 * area[0])
+				{
+					best.erase(best.begin() + 1);
+				}
+				else if (rrect[1].center.y > (rrect[0].center.y) + (height[0] / 2) || rrect[1].center.y < (rrect[0].center.y) - (height[0] / 2))
+				{
+					best.erase(best.begin() + 1);
+				}
+				else if (isLeft[1] == isLeft[0])
+				{
+					best.erase(best.begin() + 1);
+				}
+				else if ((rrect[1].center.x > rrect[0].center.x && isLeft[1]) || (rrect[1].center.x < rrect[0].center.x && !isLeft[1]))
+				{
+					best.erase(best.begin() + 1);
+				}
+				if (best.size() == 1)
+				{
+					if (isLeft[0])
+					{
+						rightCenter.x = 0;
+					}
+					else
+					{
+						leftCenter.x = 0;
+					}
+				}
+			}
+
 			hasLeft = false, hasRight = false;
 			if (leftCenter.x != 0 && rightCenter.x != 0)
 			{
@@ -636,8 +704,8 @@ int main(int argc, char *argv[])
 			double tanLeft = tan((CV_PI / 180) * leftTracker.leftTargetAngle);
 			double tanRight = tan((CV_PI / 180) * -rightTracker.rightTargetAngle);
 			angleToTarget = leftTracker.leftTargetAngle + rightTracker.rightTargetAngle;
-			distance = ((cameraSeparation-11)/(tanLeft+tanRight));
-			botDistance = distance-5;
+			distance = ((cameraSeparation - 11) / (tanLeft + tanRight));
+			botDistance = distance - 5;
 		}
 		else if (leftTracker.targetsFound == 2)
 		{
