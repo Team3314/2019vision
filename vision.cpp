@@ -1,9 +1,7 @@
 #include "vision.hpp"
 
 //TODO
-//PRIORITY: try-catch to find device ids (in case it crashes so it doesnt crash) []
-//PRIORITY: video conference style streaming with RoIs [x]
-//PRIORITY: change to best resolution(+fix consts) []
+//PRIORITY: change to best resolution(+fix consts) [x]
 //Hinting at other targets by pulling from net tables []
 //GUI to fix thresholding []
 //Confidence levels []
@@ -50,39 +48,81 @@ void setVideoCaps(cv::VideoCapture &input)
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
 }
 
-double point3fLength(cv::Point3f point) {
-	return sqrt((point.x)*(point.x) + (point.y)*(point.y) + (point.z)*(point.z));
+double point3fLength(cv::Point3f point)
+{
+	return sqrt((point.x) * (point.x) + (point.y) * (point.y) + (point.z) * (point.z));
 }
 
-double angleFromPixels(double ctx) {
+double angleFromPixels(double ctx)
+{
 	// Compute focal length in pixels from FOV
 	double f = (0.5 * OPENCV_WIDTH) / tan(0.5 * FOV_RADIANS);
 
 	// Vectors subtending image center and pixel from optical center
 	// in camera coordinates.
-	cv::Point3f center(0,0,f), pixel(ctx, 0, f);
+	cv::Point3f center(0, 0, f), pixel(ctx, 0, f);
 
 	// angle between vector (0, 0, f) and pixel
 	//double dot = dot_product(center, pixel);
 	//double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
-	double dot = f*f;
+	double dot = f * f;
 
 	// TODO: Possibly replace dot with f*f
 	// TODO: Possibly replace point3fLength() with cv::norm()
-	double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel))))*(180/CV_PI);
+	double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel)))) * (180 / CV_PI);
 
-	// The dot product will always return a cos>0 
+	// The dot product will always return a cos>0
 	// when the vectors are pointing in the same general
-	// direction. 
+	// direction.
 	// This means that no ctx will produce a negative value.
 	// We need to force the value negative to indicate "to the left".
-	if (ctx<0) alpha = -alpha;
+	if (ctx < 0)
+		alpha = -alpha;
 	return alpha;
 }
 
-double angleFromRawPixels(double tx) {
-	return angleFromPixels(tx - (OPENCV_WIDTH/2));
+double angleFromRawPixels(double tx)
+{
+	return angleFromPixels(tx - (OPENCV_WIDTH / 2));
 }
+
+int findFirstCamera()
+{
+	cv::Mat src;
+	for (int i = 0; i < 10; i++)
+	{
+		cv::VideoCapture camera(i);
+		try
+		{
+			camera.read(src);
+			camera.release();
+			return i;
+		}
+		catch (...)
+		{
+			camera.release();
+		}
+	}
+	return -1;
+}
+
+/*def clearCapture(capture):
+    capture.release()
+    cv2.destroyAllWindows()
+
+def countCameras():
+    n = 0
+    for i in range(10):
+        try:
+            cap = cv2.VideoCapture(i)
+            ret, frame = cap.read()
+            cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            clearCapture(cap)
+            n += 1
+        except:
+            clearCapture(cap)
+            break
+    return n*/
 
 class TargetTracker
 {
@@ -96,12 +136,12 @@ class TargetTracker
 
 	double baseOffset = 0;
 	double multiplier = 0;
-	
+
 	double targetX = 0;
 	double targetY = 0;
 	double centeredTargetX = 0;
 	double centeredTargetY = 0;
-	
+
 	double targetAngle = 0;
 	double leftTargetAngle = 0;
 	double rightTargetAngle = 0;
@@ -369,9 +409,10 @@ class TargetTracker
 		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
 		//targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
 		targetAngle = angleFromPixels(centeredTargetX) + baseOffset;
-		//std::cout << "Target angle: " << targetAngle << std::endl;
+		std::cout << "base offset: " << baseOffset << std::endl;
 
-		if (best.size() == 0) {
+		if (best.size() == 0)
+		{
 			targetsFound = 0, centeredTargetX = 0, centeredTargetY = 0, targetAngle = 0, hasLeft = false, hasRight = false;
 		}
 
@@ -383,35 +424,16 @@ class TargetTracker
 
 int main(int argc, char *argv[])
 {
-	/*def clearCapture(capture):
-    capture.release()
-    cv2.destroyAllWindows()
-
-def countCameras():
-    n = 0
-    for i in range(10):
-        try:
-            cap = cv2.VideoCapture(i)
-            ret, frame = cap.read()
-            cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            clearCapture(cap)
-            n += 1
-        except:
-            clearCapture(cap)
-            break
-    return n*/
-
-
 	// default to robot mode
 	bool robot = true;
 	bool verbose = false;
 	bool showOutputWindow = false;
 	std::string ntIP = "10.33.14.2";
 	std::string streamIP = "10.33.14.5";
-	int leftCameraID = 0;
-	int rightCameraID = 1;
-	int frontCameraID = 2;
-	int backCameraID = 3;
+	int leftCameraID = 3;
+	int rightCameraID = 4;
+	int frontCameraID = 5;
+	int backCameraID = 6;
 	double leftCameraAngle = 0;   //deg
 	double rightCameraAngle = 0;  //deg
 	double cameraSeparation = 22; //inches
@@ -512,6 +534,19 @@ def countCameras():
 		}
 	}
 
+	int firstCamera = findFirstCamera();
+	if (firstCamera == -1)
+	{
+		std::cout << "Cameras not found" << std::endl;
+	}
+	else
+	{
+		leftCameraID = firstCamera++;
+		rightCameraID = firstCamera++;
+		frontCameraID = firstCamera++;
+		backCameraID = firstCamera;
+	}
+
 	// output this always...
 	//if (!robot)
 	//{
@@ -539,7 +574,6 @@ def countCameras():
 	cv::Mat frontImg, backImg;
 	setVideoCaps(frontCamera);
 	//setVideoCaps(backCamera);
-	
 
 	std::shared_ptr<NetworkTable> myNetTable;
 	NetworkTable::SetClientMode();
@@ -583,31 +617,39 @@ def countCameras():
 			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
 			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
 			//std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
-			
-			// TODO: distance can't be modifed here, 
-			// because it is used in the calculations below. 
-			// This needs to remain the camera distance for now. 
-			// Maybe split it out... camDistance and botDistance?  
+
+			// TODO: distance can't be modifed here,
+			// because it is used in the calculations below.
+			// This needs to remain the camera distance for now.
+			// Maybe split it out... camDistance and botDistance?
 			distance = (cameraSeparation / (tanLeft + tanRight)); //subtract dist from frame (5in)
 			lastGoodDistance = distance;
 			botDistance = distance - 5;
 			//offset = tanLeft * distance - cameraSeparation/2;
-			angleToTarget = ((180 / CV_PI) * atan((tanLeft*distance-cameraSeparation/2) / distance) +
-								(180 / CV_PI) * atan((tanRight*distance+cameraSeparation/2) / distance))/2;
+			/*angleToTarget = ((180 / CV_PI) * atan((tanLeft * distance - cameraSeparation / 2) / distance) +
+							 (180 / CV_PI) * atan((tanRight * distance + cameraSeparation / 2) / distance)) /
+							2;*/
+			angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
 		}
 		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1 && leftTracker.hasLeft && rightTracker.hasRight)
 		{
+			double tanLeft = tan((CV_PI / 180) * leftTracker.leftTargetAngle);
+			double tanRight = tan((CV_PI / 180) * -rightTracker.rightTargetAngle);
 			angleToTarget = leftTracker.leftTargetAngle + rightTracker.rightTargetAngle;
+			distance = ((cameraSeparation-11)/(tanLeft+tanRight));
+			botDistance = distance-5;
 		}
 		else if (leftTracker.targetsFound == 2)
 		{
-			if (lastGoodDistance>36) {
+			if (lastGoodDistance > 36)
+			{
 				angleToTarget = 10;
 			}
 		}
 		else if (rightTracker.targetsFound == 2)
 		{
-			if (lastGoodDistance>36) {
+			if (lastGoodDistance > 36)
+			{
 				angleToTarget = -10;
 			}
 		}
@@ -654,29 +696,30 @@ def countCameras():
 			mywriter.writeFrame(&outImage); //write output image over network
 		}
 		cv::Mat combine(240, 480, CV_8UC3);
-		int primary = myNetTable->GetNumber("Primary img", -1);		
-		switch (primary) {
+		int primary = myNetTable->GetNumber("Primary img", -1);
+		switch (primary)
+		{
 		case 0:
-		break;	
+			break;
 		case 1:
-		break;
+			break;
 		case 2:
-		break;
+			break;
 		case 3:
-		break;
+			break;
 		default:
-		cv::Rect ROI1(0, 0, 320, 240);
-    		cv::Mat temp;
-		cv::resize(frontImg,temp,cv::Size(ROI1.width, ROI1.height));
-    		temp.copyTo(combine(ROI1));
-		cv::Rect ROI2(320, 0, 160, 120);
-		cv::resize(leftTracker.output,temp,cv::Size(ROI2.width, ROI2.height));
- 		temp.copyTo(combine(ROI2));
-		cv::Rect ROI3(320, 120, 160, 120);
-		cv::resize(rightTracker.output,temp,cv::Size(ROI3.width, ROI3.height));
- 		temp.copyTo(combine(ROI3));
-		break;
-		}		
+			cv::Rect ROI1(0, 0, 320, 240);
+			cv::Mat temp;
+			cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI1));
+			cv::Rect ROI2(320, 0, 160, 120);
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
+			cv::Rect ROI3(320, 120, 160, 120);
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI3));
+			break;
+		}
 		//cv::hconcat(leftTracker.output, rightTracker.output, combine);
 		//cv::imshow("Left Output", leftTracker.output);
 		//cv::imshow("Right Output", rightTracker.output);

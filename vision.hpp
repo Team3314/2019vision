@@ -25,9 +25,9 @@ const double CALIBRATION_DISTANCE = 27.64; //string len. in inches div. 2 (hypot
 
 // Camera Calibration Parameters
 // using T bracket
-const double LEFT_SEPARATION = 10.5;  //inches
-const double RIGHT_SEPARATION = 11.5; //inches
-const double TARGET_DISTANCE = 29;    //inches perpendicular
+const double LEFT_SEPARATION = 22-9.75;  //inches
+const double RIGHT_SEPARATION = 9.75; //inches
+const double TARGET_DISTANCE = 20.25;    //inches perpendicular
 const bool USE_T_CALIBRATION = true;
 //const double CAMERA_SEPARATION = LEFT_SEPARATION + RIGHT_SEPARATION; // inches
 
