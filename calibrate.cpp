@@ -223,7 +223,7 @@ class TargetTracker
 					//Lefts are black
 					else
 					{
-						cv::line(poss, pts[j], pts[(j + 1) % 4], BLUE, 2);
+						cv::line(poss, pts[j], pts[(j + 1) % 4], YELLOW, 2);
 					}
 				}
 				//cv::imshow("Possible", poss);
@@ -298,7 +298,7 @@ class TargetTracker
 					else
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,0), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], BLUE, 2);
+						cv::line(output, pts[j], pts[(j + 1) % 4], YELLOW, 2);
 						leftCenter = center;
 					}
 				}

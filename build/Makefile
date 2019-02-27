@@ -56,17 +56,6 @@ CMAKE_BINARY_DIR = /3314/src/build
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target edit_cache
-edit_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "No interactive CMake dialog available..."
-	/usr/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
-.PHONY : edit_cache
-
-# Special rule for the target edit_cache
-edit_cache/fast: edit_cache
-
-.PHONY : edit_cache/fast
-
 # Special rule for the target rebuild_cache
 rebuild_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
@@ -77,6 +66,17 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 
 .PHONY : rebuild_cache/fast
+
+# Special rule for the target edit_cache
+edit_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "No interactive CMake dialog available..."
+	/usr/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
+.PHONY : edit_cache
+
+# Special rule for the target edit_cache
+edit_cache/fast: edit_cache
+
+.PHONY : edit_cache/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -122,6 +122,19 @@ viz: cmake_check_build_system
 viz/fast:
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/build
 .PHONY : viz/fast
+
+#=============================================================================
+# Target rules for targets named viz1
+
+# Build rule for target.
+viz1: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 viz1
+.PHONY : viz1
+
+# fast build rule for target.
+viz1/fast:
+	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/build
+.PHONY : viz1/fast
 
 #=============================================================================
 # Target rules for targets named cal
@@ -210,6 +223,7 @@ cap_gstreamer.o: cap_gstreamer.cpp.o
 # target to build an object file
 cap_gstreamer.cpp.o:
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.o
+	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/cap_gstreamer.cpp.o
 	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.o
 	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.o
 .PHONY : cap_gstreamer.cpp.o
@@ -221,6 +235,7 @@ cap_gstreamer.i: cap_gstreamer.cpp.i
 # target to preprocess a source file
 cap_gstreamer.cpp.i:
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.i
+	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/cap_gstreamer.cpp.i
 	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.i
 	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.i
 .PHONY : cap_gstreamer.cpp.i
@@ -232,9 +247,37 @@ cap_gstreamer.s: cap_gstreamer.cpp.s
 # target to generate assembly for a file
 cap_gstreamer.cpp.s:
 	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.s
+	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/cap_gstreamer.cpp.s
 	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.s
 	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.s
 .PHONY : cap_gstreamer.cpp.s
+
+vision.1.o: vision.1.cpp.o
+
+.PHONY : vision.1.o
+
+# target to build an object file
+vision.1.cpp.o:
+	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/vision.1.cpp.o
+.PHONY : vision.1.cpp.o
+
+vision.1.i: vision.1.cpp.i
+
+.PHONY : vision.1.i
+
+# target to preprocess a source file
+vision.1.cpp.i:
+	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/vision.1.cpp.i
+.PHONY : vision.1.cpp.i
+
+vision.1.s: vision.1.cpp.s
+
+.PHONY : vision.1.s
+
+# target to generate assembly for a file
+vision.1.cpp.s:
+	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/vision.1.cpp.s
+.PHONY : vision.1.cpp.s
 
 vision.o: vision.cpp.o
 
@@ -269,11 +312,12 @@ help:
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... edit_cache"
+	@echo "... rebuild_cache"
 	@echo "... viz"
+	@echo "... edit_cache"
+	@echo "... viz1"
 	@echo "... cal"
 	@echo "... camtest"
-	@echo "... rebuild_cache"
 	@echo "... calibrate.o"
 	@echo "... calibrate.i"
 	@echo "... calibrate.s"
@@ -283,6 +327,9 @@ help:
 	@echo "... cap_gstreamer.o"
 	@echo "... cap_gstreamer.i"
 	@echo "... cap_gstreamer.s"
+	@echo "... vision.1.o"
+	@echo "... vision.1.i"
+	@echo "... vision.1.s"
 	@echo "... vision.o"
 	@echo "... vision.i"
 	@echo "... vision.s"

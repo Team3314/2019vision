@@ -11,7 +11,7 @@
 #include "cap_gstreamer.hpp"
 
 // Camera Parameters
-const double HORZ_DEGREES_PER_PIXEL = 1;                        //left, right (70.42 / 640)
+const double HORZ_DEGREES_PER_PIXEL = 1; //left, right (70.42 / 640)
 //const double LEFT_MULTIPLIER = 0.091, RIGHT_MULTIPLIER = 0.076; //.764, RIGHT_MULTIPLIER = .875; .0835
 const double LEFT_MULTIPLIER = 0.0835, RIGHT_MULTIPLIER = 0.0835;
 
@@ -23,13 +23,13 @@ const double CALIBRATION_DISTANCE = 27.64; //string len. in inches div. 2 (hypot
 // using T bracket
 const double LEFT_SEPARATION = 10.5;  //inches
 const double RIGHT_SEPARATION = 11.5; //inches
-const double TARGET_DISTANCE = 29;    //inches perpendicular
+const double TARGET_DISTANCE = 29;	//inches perpendicular
 const bool USE_T_CALIBRATION = true;
 
 //OpenCV camera calc parameters
 const int OPENCV_WIDTH = 640, OPENCV_HEIGHT = 480;
 
-const double FOV_RADIANS = (LEFT_MULTIPLIER + RIGHT_MULTIPLIER)/2 * OPENCV_WIDTH * (CV_PI/180);
+const double FOV_RADIANS = (LEFT_MULTIPLIER + RIGHT_MULTIPLIER) / 2 * OPENCV_WIDTH * (CV_PI / 180);
 
 // Output stream parameters
 const int STREAM_WIDTH = 640 * 2, STREAM_HEIGHT = 480, FRAMERATE = 15, BITRATE = 600000, PORT = 5001;
@@ -43,7 +43,6 @@ const cv::Scalar BLACK(0, 0, 0);
 const cv::Scalar RED(0, 0, 255);
 const cv::Scalar PINK(255, 0, 255);
 const cv::Scalar BLUE(255, 0, 0);
-
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -86,28 +85,32 @@ void setVideoCaps(cv::VideoCapture &input)
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
 }
 
-double point3fLength(cv::Point3f point) {
-	return sqrt((point.x)*(point.x) + (point.y)*(point.y) + (point.z)*(point.z));
+double point3fLength(cv::Point3f point)
+{
+	return sqrt((point.x) * (point.x) + (point.y) * (point.y) + (point.z) * (point.z));
 }
 
-double angleFromPixels(double ctx) {
+double angleFromPixels(double ctx)
+{
 	// Compute focal length in pixels from FOV
 	double f = (0.5 * OPENCV_WIDTH) / tan(0.5 * 0.942478);
 
 	// Vectors subtending image center and pixel from optical center
 	// in camera coordinates.
-	cv::Point3f center(0,0,f), pixel(ctx, 0, f);
+	cv::Point3f center(0, 0, f), pixel(ctx, 0, f);
 
 	// angle between vector (0, 0, f) and pixel
 	//double dot = dot_product(center, pixel);
-	double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
-	double alpha = (acos(dot / (point3fLength(center) * point3fLength(pixel))))*(180/CV_PI);
-	if (ctx<0) alpha = -alpha;
+	double dot = center.x * pixel.x + center.y * pixel.y + center.z * pixel.z;
+	double alpha = (acos(dot / (point3fLength(center) * point3fLength(pixel)))) * (180 / CV_PI);
+	if (ctx < 0)
+		alpha = -alpha;
 	return alpha;
 }
 
-double angleFromRawPixels(double tx) {
-	return angleFromPixels(tx - (OPENCV_WIDTH/2));
+double angleFromRawPixels(double tx)
+{
+	return angleFromPixels(tx - (OPENCV_WIDTH / 2));
 }
 
 class TargetTracker
@@ -122,12 +125,12 @@ class TargetTracker
 
 	double baseOffset = 0;
 	double multiplier = 0;
-	
+
 	double targetX = 0;
 	double targetY = 0;
 	double centeredTargetX = 0;
 	double centeredTargetY = 0;
-	
+
 	double targetAngle = 0;
 	double leftTargetAngle = 0;
 	double rightTargetAngle = 0;
@@ -600,9 +603,10 @@ int main(int argc, char *argv[])
 			std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
 			distance = (cameraSeparation / (tanLeft - tanRight)); //subtract dist from frame
 			lastGoodDistance = distance;
-			offset = tanLeft * distance - cameraSeparation/2;
-			angleToTarget = ((180 / CV_PI) * atan((tanLeft*distance-cameraSeparation/2) / distance) +
-								(180 / CV_PI) * atan((tanRight*distance+cameraSeparation/2) / distance))/2;
+			offset = tanLeft * distance - cameraSeparation / 2;
+			angleToTarget = ((180 / CV_PI) * atan((tanLeft * distance - cameraSeparation / 2) / distance) +
+							 (180 / CV_PI) * atan((tanRight * distance + cameraSeparation / 2) / distance)) /
+							2;
 		}
 		/*
 		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1 && leftTracker.hasLeft && rightTracker.hasRight)

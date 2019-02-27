@@ -1,80 +1,201 @@
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/core/core.hpp>
-#include <iostream>
-#include <cstdlib>
+#include "vision.hpp"
 
-#include <networktables/NetworkTable.h>
-#include <stdlib.h>
-#include <string.h>
+//TODO
+//time frame grabs []
+//finish switching cameras []
+//Hinting at other targets by pulling from net tables []
+//GUI to fix thresholding []
+//Confidence levels []
+//PRIORITY: account for targets obstructed by hatch[]
+//PRIORITY: custom goal class, cleaning up/optimizing analysis
 
-//Need to:
-
-//Threshold [X]
-//Filter out obviously bad goals (area, aspect ratio, etc.) [X]
-//Draw possible goals [X]
-//Filter out possible goals (distortion using cosines of rectangles) [Thought I had it but no]
-//Good targets' angles would have ratios closest to zero
-//Redraw best goal and centers [X]
-//Distinguish left from right [X]
-//Draw proper targetX in between left/right targets [X]
-//GUI to fix thresholding [One day]
-
-static double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
+std::string create_write_pipeline(int width, int height, int framerate,
+								  int bitrate, std::string ip, int port)
 {
-	double dx1 = pt1.x - pt0.x;
-	double dy1 = pt1.y - pt0.y;
-	double dx2 = pt2.x - pt0.x;
-	double dy2 = pt2.y - pt0.y;
-	return (dx1 * dx2 + dy1 * dy2) / sqrt((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 * dy2) + 1e-10);
+
+	char buff[500];
+	sprintf(buff,
+			"appsrc ! "
+			"video/x-raw, format=(string)BGR, width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! "
+			"videoconvert ! omxh264enc bitrate=%d ! video/x-h264, stream-format=(string)byte-stream ! h264parse ! rtph264pay ! "
+			"udpsink host=%s port=%d",
+			width, height, framerate, bitrate, ip.c_str(), port);
+
+	/*sprintf(buff,
+	"appsrc ! video/x-raw, format=(string)I420, width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! omxh264enc bitrate=%d ! video/x-h264, stream-format=(string)byte-stream ! h264parse ! rtph264pay ! udpsink host=%s port=%d", width, height, framerate, bitrate, ip.c_str(), port);*/
+
+	std::string pipstring = buff;
+
+	printf("write string: %s\n", pipstring.c_str());
+	return pipstring;
 }
 
-int main()
+void flash_good_settings(int device)
 {
-	//Normalize image
-	//cv::Mat source = cv::imread("/3314/src/tagged.jpg");
-	//cv::Mat source = cv::imread("/3314/src/testing.jpg");
+	char setting_script[100];
+	sprintf(setting_script, "/3314/src/good_settings.sh %d", device);
+	system(setting_script);
+}
+
+void flash_bad_settings(int device)
+{
+	char setting_script[100];
+	sprintf(setting_script, "/3314/src/bad_settings.sh %d", device);
+	system(setting_script);
+}
+
+void setVideoCaps(cv::VideoCapture &input)
+{
+	input.set(CV_CAP_PROP_FRAME_WIDTH, OPENCV_WIDTH);
+	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
+}
+
+double point3fLength(cv::Point3f point)
+{
+	return sqrt((point.x) * (point.x) + (point.y) * (point.y) + (point.z) * (point.z));
+}
+
+double angleFromPixels(double ctx)
+{
+	// Compute focal length in pixels from FOV
+	double f = (0.5 * OPENCV_WIDTH) / tan(0.5 * FOV_RADIANS);
+
+	// Vectors subtending image center and pixel from optical center
+	// in camera coordinates.
+	cv::Point3f center(0, 0, f), pixel(ctx, 0, f);
+
+	// angle between vector (0, 0, f) and pixel
+	//double dot = dot_product(center, pixel);
+	//double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
+	double dot = f * f;
+
+	// TODO: Possibly replace dot with f*f
+	// TODO: Possibly replace point3fLength() with cv::norm()
+	double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel)))) * (180 / CV_PI);
+
+	// The dot product will always return a cos>0
+	// when the vectors are pointing in the same general
+	// direction.
+	// This means that no ctx will produce a negative value.
+	// We need to force the value negative to indicate "to the left".
+	if (ctx < 0)
+		alpha = -alpha;
+	return alpha;
+}
+
+double angleFromRawPixels(double tx)
+{
+	return angleFromPixels(tx - (OPENCV_WIDTH / 2));
+}
+
+int findFirstCamera()
+{
+	cv::Mat src;
+	for (int i = 0; i < 10; i++)
+	{
+		cv::VideoCapture camera(i);
+		try
+		{
+			camera.read(src);
+			cv::cvtColor(src, src, cv::COLOR_BGR2HSV);
+			camera.release();
+			return i;
+		}
+		catch (...)
+		{
+			camera.release();
+		}
+	}
+	return -1;
+}
+class Goal : public std::vector<cv::Point>
+{
+	public:
+
+};
+
+class TargetTracker
+{
+	cv::VideoCapture input;
+
+  public:
+	long frame;
+	int device;
 	cv::Mat source;
-	cv::VideoCapture leftInput(1);
-	leftInput.set(CV_CAP_PROP_FRAME_WIDTH, 768);
-	leftInput.set(CV_CAP_PROP_FRAME_HEIGHT, 432);
-	//cv::VideoCapture rightInput(2);
-	double targetX = 0, targetY = 0;
-	bool twoTargetsFound = false;
-	std::shared_ptr<NetworkTable> myNetTable;
-	std::__cxx11::string netTableAddr = "192.168.1.3";
-	NetworkTable::SetClientMode();
-	NetworkTable::SetDSClientEnabled(false);
-	NetworkTable::SetIPAddress(llvm::StringRef(netTableAddr));
-	NetworkTable::Initialize();
-	myNetTable = NetworkTable::GetTable("SmartDashboard");
-	for (;;)
+	cv::Mat output;
+
+	double baseOffset = 0;
+	double multiplier = 0;
+
+	double targetX = 0;
+	double targetY = 0;
+	double centeredTargetX = 0;
+	double centeredTargetY = 0;
+
+	double targetAngle = 0;
+	double leftTargetAngle = 0;
+	double rightTargetAngle = 0;
+
+	int targetsFound = 0;
+	bool hasLeft = false;
+	bool hasRight = false;
+	bool lowestAreaFilter = false;
+
+	TargetTracker(int Device, double BaseOffset, double Multiplier)
+		: input(Device)
+	{
+		device = Device;
+		baseOffset = BaseOffset;
+		multiplier = Multiplier;
+		setVideoCaps(input);
+	}
+
+	void capture()
+	{
+		frame++;
+		if (frame == 50)
+		{
+			flash_bad_settings(device);
+		}
+		else if (frame == 0 || frame == 100)
+		{
+			flash_good_settings(device);
+		}
+
+		input.read(source);
+	}
+
+	void analyze()
 	{
 		double t = (double)cv::getTickCount();
-		leftInput.read(source);
+		double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0;
+		double distance;
+
 		//cv::imshow("Source", source);
 		cv::normalize(source, source, 0, 255, cv::NORM_MINMAX);
 
-		cv::Mat output = source.clone(), poss = source.clone();
-		cv::Mat hsv, noise;
+		//cv::Mat output = source.clone(), poss = source.clone();
+		cv::Mat hsv;
+		//cv::Mat noise;
+
+		// TODO: don't need 3 images
+		output = source.clone();
 
 		//HSV threshold
 		cv::cvtColor(source, hsv, cv::COLOR_BGR2HSV);
-		cv::inRange(hsv, cv::Scalar(55, 80, 90), cv::Scalar(255, 255, 255), hsv);
-		//cv::inRange(source, cv::Scalar(0,100,0), cv::Scalar(255,255,255), hsv);
+		cv::inRange(hsv, MIN_HSV, MAX_HSV, hsv);
 
-		//Erosion and dilation
-		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-		cv::erode(hsv, noise, kernel, cv::Point(-1, -1), 1);
-		cv::dilate(noise, noise, kernel, cv::Point(-1, -1), 1);
-
-		cv::imshow("HSV threshold", hsv);
-		//cv::imshow("Noise removed", noise);
+		t1 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
 		//Finding all contours
 		std::vector<std::vector<cv::Point>> contours, possible, best;
 		std::vector<cv::Vec4i> hierarchy;
-		cv::findContours(noise, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+		// TODO: use custom class
+		//std::vector<Goal> contours;
+		
+		// TODO: don't need hierarchy
+		cv::findContours(hsv, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
 		//Filters out bad contours from possible goals
 		for (size_t i = 0; i < contours.size(); i++)
@@ -106,7 +227,7 @@ int main()
 			{
 				rRatio = 1 / rRatio;
 			}
-			if (rRatio < 0.2 || rRatio > 0.6)
+			if (rRatio < MIN_ASPECT_RATIO || rRatio > MAX_ASPECT_RATIO)
 				continue;
 			//std::cout << "Ratio: " << rRatio << std::endl;
 
@@ -114,17 +235,17 @@ int main()
 			double cRatio = (double)(rect.width / rect.height);
 			double areaRatio = rArea / cArea;
 
-			//Checks if area is too small/aspect ratio is not close to 2/5
-			if (areaRatio < 0.5)
+			//Checks if area is too small/aspect ratio is not close to 2/5.5
+			if (areaRatio < MIN_AREA_RATIO)
 				continue;
 			//std::cout << "Area ratio: " << areaRatio << std::endl;
-			if (cArea < 25)
+			if (cArea < MIN_AREA)
 				continue;
 			//std::cout << "Area: " << cArea << std::endl;
 			if (rect.width > rect.height)
 				continue;
 			//std::cout << "Width: " << rect.width << " Height: " << rect.height << std::endl;
-			if (offset < 3 || offset > 20)
+			if (offset < MIN_OFFSET || offset > MAX_OFFSET)
 				continue;
 			//std::cout << "Offset: " << offset << std::endl;
 			//if (cRatio < 0.2 || cRatio > 0.6) continue;
@@ -132,39 +253,117 @@ int main()
 			possible.push_back(current);
 		}
 
+		t2 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+
 		if (possible.size() > 0)
 		{
-			double mostArea = 0;
-			double secondMostArea = 0;
+			double mostArea = 0, leastArea = 10000;
+			double secondMostArea = 0, secondLeastArea = 10000;
 			std::vector<cv::Point> firstBest = possible[0];
 			std::vector<cv::Point> secondBest = possible[0];
 
 			//Draws mininum area rects. and centers for possible goals
 			for (size_t i = 0; i < possible.size(); i++)
 			{
-				cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
+				//cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
+				//cv::Point2f pts[4];
+				//rrect.points(pts);
+				//cv::Point2f center = rrect.center;
+				double area = cv::contourArea(possible[i]);
+				//std::cout << "Lowest area filter on: " << lowestAreaFilter << std::endl;
+				if (lowestAreaFilter) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
+				{
+					if (area < secondLeastArea)
+					{
+						if (area <= leastArea)
+						{
+							secondLeastArea = leastArea;
+							secondBest = firstBest;
+							leastArea = area;
+							firstBest = possible[i];
+						}
+						else if (area > leastArea)
+						{
+							secondLeastArea = area;
+							secondBest = possible[i];
+						}
+					}
+				}
+				else if (!lowestAreaFilter) //default to largest areas otherwise
+				{
+					if (area > secondMostArea)
+					{
+						if (area >= mostArea)
+						{
+							secondMostArea = mostArea;
+							secondBest = firstBest;
+							mostArea = area;
+							firstBest = possible[i];
+						}
+						else if (area < mostArea)
+						{
+							secondMostArea = area;
+							secondBest = possible[i];
+						}
+					}
+				}
+			}
+
+			t3 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+
+			best.push_back(firstBest);
+			if (firstBest != secondBest)
+			{
+				best.push_back(secondBest);
+			}
+			/*for (size_t j = 0; j < possible.size(); j++)
+			{
+				if (possible[j] == firstBest || possible[j] == secondBest)
+				{
+					possible.erase(possible.begin() + j);
+				}
+			}*/
+
+			/*for (size_t i = 0; i < possible.size(); i++)
+			{
+				if (possible[i] != firstBest && possible[i] != secondBest)
+				{
+					cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
+					cv::Point2f pts[4];
+					rrect.points(pts);
+					for (unsigned int j = 0; j < 4; ++j)
+					{
+						cv::line(output, pts[j], pts[(j + 1) % 4], BLACK, 2);
+					}
+				}
+			}*/
+
+			//t4 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+
+			cv::RotatedRect rrect[2];
+			bool isLeft[2];
+			double area[2];
+			double height[2];
+
+			cv::Point2f rightCenter, leftCenter;
+			for (size_t i = 0; i < best.size(); i++)
+			{
+				rrect[i] = cv::minAreaRect(best[i]);
 				cv::Point2f pts[4];
-				rrect.points(pts);
-				cv::Point2f center = rrect.center;
-
-				double height = cv::norm(pts[1] - pts[0]);
-				double width = cv::norm(pts[2] - pts[1]);
-				double ratio = width / height;
-				if (ratio > 1)
+				rrect[i].points(pts);
+				cv::Point2f center = rrect[i].center;
+				double rHeight = cv::norm(pts[1] - pts[0]);
+				double rWidth = cv::norm(pts[2] - pts[1]);
+				area[i] = rWidth * rHeight;
+				if (rHeight >= rWidth)
 				{
-					ratio = 1 / ratio;
+					height[i] = rHeight;
 				}
-				if (ratio < 0.35 || ratio > 0.45)
+				else
 				{
+					height[i] = rWidth;
 				}
-				//std::cout << "Ratio: " << ratio << std::endl;
 
-				//Rotated rectangle gives angle from 0 to -90 degrees (unhelpful)
-				//This code converts the angle to a value between 0 and 180 degrees
-				//This can be used to differentiate left and right targets
-				//NOT MY CODE FROM THIS POINT
-
-				/*Choose the longer edge of the rotated rect to compute the angle*/
 				cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
 				cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
 
@@ -176,126 +375,463 @@ int main()
 
 				float angle = 180.0f / CV_PI * acos((ref.x * usedEdge.x + ref.y * usedEdge.y) / (cv::norm(ref) * cv::norm(usedEdge)));
 
-				//MY CODE FROM THIS POINT
-				//More distorted = less offset ... so possibly best goal would have largest value for abs(90-angle)?
-				float offset = fabs(90.0 - angle);
-				//std::cout << "Offset: " << offset << "; " << std::endl;
-				//std::cout << "Real angle: " << rrect.angle << "; ";
-
-				for (unsigned int j = 0; j < 4; ++j)
-				{
-					cv::line(poss, pts[j], pts[(j + 1) % 4], cv::Scalar(0, 0, 0));
-					//double ratio = angle(pts[(j+1)%4], pts[(j+2)%4], pts[j]);
-					//std::cout << "Ratio: " << ratio << "; ";
-				}
-
-				//Commented out but this is distinguish L/R code
-				//Centers are red
-				cv::circle(poss, center, 2, cv::Scalar(0, 0, 255));
-
-				for (unsigned int j = 0; j < 4; ++j)
-				{
-					//Rights are magenta
-					if (angle >= 90)
-					{
-						cv::line(poss, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 255), 2);
-					}
-					//Lefts are black
-					else
-					{
-						cv::line(poss, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 0), 2);
-					}
-				}
-				//cv::imshow("Possible", poss);
-
-				double area = cv::contourArea(possible[i]);
-				//std::cout << "Area: " << area << std::endl;
-				if (area > secondMostArea)
-				{
-					if (area >= mostArea)
-					{
-						secondMostArea = mostArea;
-						secondBest = firstBest;
-						mostArea = area;
-						firstBest = possible[i];
-					}
-					else if (offset < mostArea)
-					{
-						secondMostArea = area;
-						secondBest = possible[i];
-					}
-				}
-				if ((i + 1) == possible.size())
-				{
-					best.push_back(firstBest);
-					best.push_back(secondBest);
-					for (size_t j = 0; j < possible.size(); j++)
-					{
-						if (possible[j] == firstBest || possible[j] == secondBest)
-						{
-							possible.erase(possible.begin() + j);
-						}
-					}
-				}
-			}
-
-			for (size_t i = 0; i < possible.size(); i++)
-			{
-				cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
-				cv::Point2f pts[4];
-				rrect.points(pts);
-				for (unsigned int j = 0; j < 4; ++j)
-				{
-					cv::line(output, pts[j], pts[(j + 1) % 4], cv::Scalar(0, 0, 0), 2);
-				}
-				//cv::drawContours(output, possible, i, cv::Scalar(0,0,0), 2);
-			}
-			cv::Point2f center1, center2;
-			for (size_t i = 0; i < best.size(); i++)
-			{
-				cv::RotatedRect rrect = cv::minAreaRect(best[i]);
-				cv::Point2f pts[4];
-				rrect.points(pts);
-				cv::Point2f center = rrect.center;
-				cv::circle(output, center, 2, cv::Scalar(0, 0, 255));
+				cv::circle(output, center, 2, RED);
 				//Point 0 is the lowest point, height is distance between 0 and 1, width is distance between 1 and 2
 				for (unsigned int j = 0; j < 4; ++j)
 				{
-					if (pts[0].x < pts[2].x)
+					//if (pts[0].x < pts[2].x)
+					if (angle > 90)
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,255), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 255), 2);
-						center1 = center;
+						cv::line(output, pts[j], pts[(j + 1) % 4], PINK, 5);
+						rightCenter = center;
+						isLeft[i] = false;
 					}
 					else
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,0), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], cv::Scalar(255, 0, 0), 2);
-						center2 = center;
+						cv::line(output, pts[j], pts[(j + 1) % 4], YELLOW, 5);
+						leftCenter = center;
+						isLeft[i] = true;
 					}
 				}
-				std::cout << "Position: " << center.x << std::endl;
+				//std::cout << "Position: " << center.x << std::endl;
 			}
-			if (center1.x != 0 && center2.x != 0)
+
+			//check if within 80% of firstbest's area
+			//if secondbest center is +/- best center/2
+			//need area/boundingbox of both
+			//is left target is left of right target
+			if (best.size() == 2)
 			{
-				targetX = (center1.x + center2.x) / 2;
-				targetY = (center1.y + center2.y) / 2;
-				twoTargetsFound = true;
+				/*if (area[1] < 0.8 * area[0])
+				{
+					best.erase(best.begin() + 1);
+				}*/
+				if (rrect[1].center.y > (rrect[0].center.y) + (height[0] / 2) || rrect[1].center.y < (rrect[0].center.y) - (height[0] / 2))
+				{
+					best.erase(best.begin() + 1);
+				}
+				else if (isLeft[1] == isLeft[0])
+				{
+					best.erase(best.begin() + 1);
+				}
+				else if ((rrect[1].center.x > rrect[0].center.x && isLeft[1]) || (rrect[1].center.x < rrect[0].center.x && !isLeft[1]))
+				{
+					best.erase(best.begin() + 1);
+				}
+				if (best.size() == 1)
+				{
+					if (isLeft[0])
+					{
+						rightCenter.x = 0;
+					}
+					else
+					{
+						leftCenter.x = 0;
+					}
+				}
+			}
+
+			hasLeft = false, hasRight = false;
+			if (leftCenter.x != 0 && rightCenter.x != 0)
+			{
+				targetX = (rightCenter.x + leftCenter.x) / 2;
+				targetY = (rightCenter.y + leftCenter.y) / 2;
+				distance = (rightCenter.x - leftCenter.x) / 2;
+				//leftTargetAngle = (leftCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
+				//rightTargetAngle = (rightCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
+				leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
+				rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
+				targetsFound = 2;
+				hasLeft = true, hasRight = true;
 			}
 			else
 			{
-				twoTargetsFound = false;
+				if (rightCenter.x != 0)
+				{
+					targetX = rightCenter.x - distance;
+					rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
+					targetsFound = 1;
+					hasRight = true;
+				}
+				if (leftCenter.x != 0)
+				{
+					targetX = leftCenter.x + distance;
+					leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
+					targetsFound = 1;
+					hasLeft = true;
+				}
 			}
 		}
-		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, output.rows), cv::Scalar(0, 0, 255), 2);
-		//cv::line(output, cv::Point(0,targetY), cv::Point(output.cols,targetY), cv::Scalar(0,255,255), 2);
-		myNetTable->PutNumber("targetX", targetX - (output.cols / 2));
-		myNetTable->PutNumber("targetY", -targetY + (output.rows / 2));
-		myNetTable->PutBoolean("twoTargetsFound", twoTargetsFound);
-		myNetTable->Flush();
-		cv::imshow("Output", output);
+
+		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_HEIGHT), cv::Scalar(0, 0, 255), 2);
+
+		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
+		//std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
+		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
+		//targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
+		targetAngle = angleFromPixels(centeredTargetX) + baseOffset;
+		//std::cout << "base offset: " << baseOffset << std::endl;
+
+		if (best.size() == 0)
+		{
+			targetsFound = 0, centeredTargetX = 0, centeredTargetY = 0, targetAngle = 0, hasLeft = false, hasRight = false;
+		}
+
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		std::cout << t * 1000 << "ms" << std::endl;
+		//std::cout << t * 1000 << "ms" << std::endl;
+		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
+	}
+};
+
+int main(int argc, char *argv[])
+{
+	// default to robot mode
+	bool robot = true;
+	bool verbose = false;
+	bool showOutputWindow = false;
+	std::string ntIP = "10.33.14.2";
+	std::string streamIP = "10.33.14.5";
+	int leftCameraID = 3;
+	int rightCameraID = 4;
+	int frontCameraID = 5;
+	int backCameraID = 6;
+	double leftCameraAngle = 0;   //deg
+	double rightCameraAngle = 0;  //deg
+	double cameraSeparation = 22; //inches
+	double lastGoodDistance = -1;
+
+	std::vector<std::string> args(argv, argv + argc);
+	for (size_t i = 1; i < args.size(); ++i)
+	{
+		if (args[i] == "-h")
+		{
+			std::cout << "Options:" << std::endl;
+			std::cout << "dev - dev mode defaults" << std::endl;
+			std::cout << "robot - robot mode defaults" << std::endl;
+			std::cout << "ntip <ip> - network table ip address" << std::endl;
+			std::cout << "streamip <ip> - stream output ip address" << std::endl;
+			std::cout << "showoutput - show output window locally" << std::endl;
+			std::cout << "leftcameraid <id> - left camera id override" << std::endl;
+			std::cout << "rightcameraid <id> - right camera id override" << std::endl;
+			std::cout << "leftcameraangle <double> - left camera angle override" << std::endl;
+			std::cout << "rightcameraangle <double> - right camera angle override" << std::endl;
+			std::cout << "cameraseparation <double> - camera separation override" << std::endl;
+			std::cout << "" << std::endl;
+			return 0;
+		}
+		if (args[i] == "dev")
+		{
+			robot = false;
+			verbose = true;
+			showOutputWindow = true;
+			ntIP = "192.168.1.198";
+			streamIP = "192.168.1.198";
+			leftCameraID = 0;
+			rightCameraID = 1;
+			frontCameraID = 2;
+			backCameraID = 3;
+			leftCameraAngle = 0;   //deg
+			rightCameraAngle = 0;  //deg
+			cameraSeparation = 22; //inches
+		}
+		if (args[i] == "robot")
+		{
+			robot = true;
+			verbose = false;
+			showOutputWindow = false;
+			ntIP = "10.33.14.2";
+			streamIP = "10.33.14.5";
+			leftCameraID = 0;
+			rightCameraID = 1;
+			frontCameraID = 2;
+			backCameraID = 3;
+			leftCameraAngle = 0;   //deg
+			rightCameraAngle = 0;  //deg
+			cameraSeparation = 22; //inches
+		}
+		if (args[i] == "ntip")
+		{
+			ntIP = args[i + 1];
+		}
+		if (args[i] == "streamip")
+		{
+			streamIP = args[i + 1];
+		}
+		if (args[i] == "showoutput")
+		{
+			showOutputWindow = true;
+		}
+		if (args[i] == "verbose")
+		{
+			verbose = true;
+		}
+		if (args[i] == "leftcameraid")
+		{
+			leftCameraID = atoi(args[i + 1].c_str());
+		}
+		if (args[i] == "rightcameraid")
+		{
+			rightCameraID = atoi(args[i + 1].c_str());
+		}
+		if (args[i] == "frontcameraid")
+		{
+			frontCameraID = atoi(args[i + 1].c_str());
+		}
+		if (args[i] == "backcameraid")
+		{
+			backCameraID = atoi(args[i + 1].c_str());
+		}
+		if (args[i] == "leftcameraangle")
+		{
+			leftCameraAngle = stod(args[i + 1]);
+		}
+		if (args[i] == "rightcameraangle")
+		{
+			rightCameraAngle = stod(args[i + 1]);
+		}
+		if (args[i] == "cameraseparation")
+		{
+			cameraSeparation = stod(args[i + 1]);
+		}
+	}
+
+	int firstCamera = findFirstCamera();
+	if (firstCamera == -1)
+	{
+		std::cout << "Cameras not found" << std::endl;
+	}
+	else
+	{
+		frontCameraID = firstCamera++;
+		leftCameraID = firstCamera++;
+		rightCameraID = firstCamera++;
+		backCameraID = firstCamera;
+	}
+
+	// output this always...
+	//if (!robot)
+	//{
+	std::cout << "LeftCameraID: " << leftCameraID << "  RightCameraID: " << rightCameraID << "  FrontCameraID: " << frontCameraID << "  BackCameraID: " << backCameraID << std::endl;
+	std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl;
+	std::cout << "LeftCameraAngle: " << leftCameraAngle << " RightCameraAngle: " << rightCameraAngle << " CameraSeparation: " << cameraSeparation << std::endl;
+	//}
+
+	CvVideoWriter_GStreamer mywriter;
+	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
+													   BITRATE, streamIP, PORT);
+	if (verbose)
+	{
+		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
+	}
+	mywriter.open(write_pipeline.c_str(),
+				  0, FRAMERATE, cv::Size(STREAM_WIDTH, STREAM_HEIGHT), true);
+
+	long long increment = 0;
+
+	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER);
+	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER);
+	cv::VideoCapture frontCamera(frontCameraID);
+	//cv::VideoCapture backCamera(backCameraID);
+	cv::Mat frontImg, backImg;
+	setVideoCaps(frontCamera);
+	//setVideoCaps(backCamera);
+
+	std::shared_ptr<NetworkTable> myNetTable;
+	NetworkTable::SetClientMode();
+	NetworkTable::SetDSClientEnabled(false);
+	NetworkTable::SetIPAddress(llvm::StringRef(ntIP));
+	NetworkTable::Initialize();
+	myNetTable = NetworkTable::GetTable("SmartDashboard/jetson");
+
+	bool hintingExample;
+
+	for (;;)
+	{
+		double distance = -1;
+		double botDistance = -1;
+		double offset = -1;
+		double angleToTarget = -1;
+		hintingExample = myNetTable->GetBoolean("Lowest area test", false);
+		leftTracker.lowestAreaFilter = hintingExample;
+		rightTracker.lowestAreaFilter = hintingExample;
+
+		leftTracker.capture();
+		rightTracker.capture();
+		frontCamera.read(frontImg);
+		//backCamera.read(backImg);
+		leftTracker.analyze();
+		rightTracker.analyze();
+
+		if (verbose)
+		{
+			std::cout << "\nIncrement: " << increment << std::endl;
+			std::cout << "LEFT" << std::endl;
+			std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
+			std::cout << "Target angle: " << leftTracker.targetAngle << std::endl;
+			std::cout << "RIGHT" << std::endl;
+			std::cout << "centeredTargetX: " << rightTracker.centeredTargetX << std::endl;
+			std::cout << "Target angle: " << rightTracker.targetAngle << std::endl;
+		}
+
+		if (leftTracker.targetsFound == 2 && rightTracker.targetsFound == 2)
+		{
+			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
+			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
+			//std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
+
+			// TODO: distance can't be modifed here,
+			// because it is used in the calculations below.
+			// This needs to remain the camera distance for now.
+			// Maybe split it out... camDistance and botDistance?
+			distance = (cameraSeparation / (tanLeft + tanRight)); //subtract dist from frame (5in)
+			lastGoodDistance = distance;
+			botDistance = distance - 5;
+			//offset = tanLeft * distance - cameraSeparation/2;
+			/*angleToTarget = ((180 / CV_PI) * atan((tanLeft * distance - cameraSeparation / 2) / distance) +
+							 (180 / CV_PI) * atan((tanRight * distance + cameraSeparation / 2) / distance)) /
+							2;*/
+			angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
+		}
+		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1 && leftTracker.hasLeft && rightTracker.hasRight)
+		{
+			double tanLeft = tan((CV_PI / 180) * leftTracker.leftTargetAngle);
+			double tanRight = tan((CV_PI / 180) * -rightTracker.rightTargetAngle);
+			angleToTarget = leftTracker.leftTargetAngle + rightTracker.rightTargetAngle;
+			distance = ((cameraSeparation - 11) / (tanLeft + tanRight));
+			botDistance = distance - 5;
+		}
+		/*else if (leftTracker.targetsFound == 2)
+		{
+			if (lastGoodDistance > 36)
+			{
+				angleToTarget = 10;
+			}
+		}
+		else if (rightTracker.targetsFound == 2)
+		{
+			if (lastGoodDistance > 36)
+			{
+				angleToTarget = -10;
+			}
+		}*/
+		/*
+		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1)
+		{
+			angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
+		}*/
+		/*else if (rightTracker.targetsFound == 2)
+		{
+			angleToTarget = rightTracker.targetAngle;
+		}*/
+
+		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+		myNetTable->PutNumber("Left targetX", leftTracker.centeredTargetX);
+		myNetTable->PutNumber("Left targetY", leftTracker.centeredTargetY);
+		myNetTable->PutNumber("Left targetsFound", leftTracker.targetsFound);
+		myNetTable->PutBoolean("Left hasLeft", leftTracker.hasLeft);
+		myNetTable->PutBoolean("Left hasRight", leftTracker.hasRight);
+		myNetTable->PutNumber("Left Angle to Target", leftTracker.targetAngle);
+
+		myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
+		myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
+		myNetTable->PutNumber("Right targetsFound", rightTracker.targetsFound);
+		myNetTable->PutBoolean("Right hasLeft", rightTracker.hasLeft);
+		myNetTable->PutBoolean("Right hasRight", rightTracker.hasRight);
+		myNetTable->PutNumber("Right Angle to Target", rightTracker.targetAngle);
+
+		myNetTable->PutNumber("Distance", distance);
+		myNetTable->PutNumber("Offset", offset);
+		myNetTable->PutNumber("Angle To Target", angleToTarget);
+
+		if (verbose)
+		{
+			std::cout << "COMBINED" << std::endl;
+			std::cout << "Combined distance: " << distance << std::endl;
+			std::cout << "Combined offset: " << offset << std::endl;
+			std::cout << "Combined angle: " << angleToTarget << std::endl;
+		}
+
+		myNetTable->PutNumber("increment", increment);
+		myNetTable->Flush();
+
+		cv::Mat combine(240, 480, CV_8UC3);
+		int primary = myNetTable->GetNumber("Primary img", -1);
+
+		cv::Rect ROI1(0, 0, 320, 240);
+		cv::Rect ROI2(320, 0, 160, 120);
+		cv::Rect ROI3(320, 120, 160, 120);
+		//cv::Rect ROI4;
+		cv::Mat temp;
+		switch (primary)
+		{
+		case 0:
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI1));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI4.width, ROI4.height));
+			temp.copyTo(combine(ROI4));
+			cv::resize(backImg, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI3));*/
+			break;
+		case 1:
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI3));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI4));
+			//cv::resize(backImg, temp, cv::Size(ROI1.width, ROI1.height));
+			//temp.copyTo(combine(ROI1));*/
+			break;
+		case 2:
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI1));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI4));
+			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
+			//temp.copyTo(combine(ROI3));*/
+			break;
+		case 3:
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI3));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI1));
+			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
+			//temp.copyTo(combine(ROI4));*/
+			break;
+		default:
+			cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI1));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI3));
+			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
+			//temp.copyTo(combine(ROI4));
+		}
+		//cv::hconcat(leftTracker.output, rightTracker.output, combine);
+		//cv::imshow("Left Output", leftTracker.output);
+		//cv::imshow("Right Output", rightTracker.output);
+		if (showOutputWindow)
+		{
+			cv::imshow("Output", combine);
+			//cv::imshow("front", frontImg);
+			//cv::imshow("back", backImg);
+		}
+		if (increment % 3)
+		{
+			IplImage outImage = (IplImage)combine;
+			mywriter.writeFrame(&outImage); //write output image over network
+		}
+
+		increment++;
 		cv::waitKey(1);
 	}
 	cv::waitKey();

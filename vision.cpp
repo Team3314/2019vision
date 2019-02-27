@@ -6,7 +6,8 @@
 //Hinting at other targets by pulling from net tables []
 //GUI to fix thresholding []
 //Confidence levels []
-//PRIORITY: new rejections: targets w/ sig. size and y-coord differentials, left/right flipped []
+//PRIORITY: account for targets obstructed by hatch[]
+//PRIORITY: custom goal class, cleaning up/optimizing analysis
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -96,6 +97,7 @@ int findFirstCamera()
 		try
 		{
 			camera.read(src);
+			cv::cvtColor(src, src, cv::COLOR_BGR2HSV);
 			camera.release();
 			return i;
 		}
@@ -106,24 +108,10 @@ int findFirstCamera()
 	}
 	return -1;
 }
-
-/*def clearCapture(capture):
-    capture.release()
-    cv2.destroyAllWindows()
-
-def countCameras():
-    n = 0
-    for i in range(10):
-        try:
-            cap = cv2.VideoCapture(i)
-            ret, frame = cap.read()
-            cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            clearCapture(cap)
-            n += 1
-        except:
-            clearCapture(cap)
-            break
-    return n*/
+class Goal : public std::vector<cv::Point>
+{
+	public:
+};
 
 class TargetTracker
 {
@@ -189,6 +177,7 @@ class TargetTracker
 		cv::Mat hsv;
 		//cv::Mat noise;
 
+		// TODO: don't need 3 images
 		output = source.clone();
 
 		//HSV threshold
@@ -200,6 +189,11 @@ class TargetTracker
 		//Finding all contours
 		std::vector<std::vector<cv::Point>> contours, possible, best;
 		std::vector<cv::Vec4i> hierarchy;
+
+		// TODO: use custom class
+		//std::vector<Goal> contours;
+		
+		// TODO: don't need hierarchy
 		cv::findContours(hsv, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
 		//Filters out bad contours from possible goals
@@ -240,7 +234,7 @@ class TargetTracker
 			double cRatio = (double)(rect.width / rect.height);
 			double areaRatio = rArea / cArea;
 
-			//Checks if area is too small/aspect ratio is not close to 2/5
+			//Checks if area is too small/aspect ratio is not close to 2/5.5
 			if (areaRatio < MIN_AREA_RATIO)
 				continue;
 			//std::cout << "Area ratio: " << areaRatio << std::endl;
@@ -395,7 +389,7 @@ class TargetTracker
 					else
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,0), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], BLUE, 5);
+						cv::line(output, pts[j], pts[(j + 1) % 4], YELLOW, 5);
 						leftCenter = center;
 						isLeft[i] = true;
 					}
@@ -409,11 +403,11 @@ class TargetTracker
 			//is left target is left of right target
 			if (best.size() == 2)
 			{
-				if (area[1] < 0.8 * area[0])
+				/*if (area[1] < 0.8 * area[0])
 				{
 					best.erase(best.begin() + 1);
-				}
-				else if (rrect[1].center.y > (rrect[0].center.y) + (height[0] / 2) || rrect[1].center.y < (rrect[0].center.y) - (height[0] / 2))
+				}*/
+				if (rrect[1].center.y > (rrect[0].center.y) + (height[0] / 2) || rrect[1].center.y < (rrect[0].center.y) - (height[0] / 2))
 				{
 					best.erase(best.begin() + 1);
 				}
@@ -477,7 +471,7 @@ class TargetTracker
 		centeredTargetY = -targetY + (OPENCV_HEIGHT / 2);
 		//targetAngle = centeredTargetX * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset; // Could be a more complex calc, we'll see if we need it
 		targetAngle = angleFromPixels(centeredTargetX) + baseOffset;
-		std::cout << "base offset: " << baseOffset << std::endl;
+		//std::cout << "base offset: " << baseOffset << std::endl;
 
 		if (best.size() == 0)
 		{
@@ -609,9 +603,9 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
+		frontCameraID = firstCamera++;
 		leftCameraID = firstCamera++;
 		rightCameraID = firstCamera++;
-		frontCameraID = firstCamera++;
 		backCameraID = firstCamera;
 	}
 
@@ -707,7 +701,7 @@ int main(int argc, char *argv[])
 			distance = ((cameraSeparation - 11) / (tanLeft + tanRight));
 			botDistance = distance - 5;
 		}
-		else if (leftTracker.targetsFound == 2)
+		/*else if (leftTracker.targetsFound == 2)
 		{
 			if (lastGoodDistance > 36)
 			{
@@ -720,7 +714,7 @@ int main(int argc, char *argv[])
 			{
 				angleToTarget = -10;
 			}
-		}
+		}*/
 		/*
 		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1)
 		{
@@ -737,12 +731,14 @@ int main(int argc, char *argv[])
 		myNetTable->PutNumber("Left targetsFound", leftTracker.targetsFound);
 		myNetTable->PutBoolean("Left hasLeft", leftTracker.hasLeft);
 		myNetTable->PutBoolean("Left hasRight", leftTracker.hasRight);
+		myNetTable->PutNumber("Left Angle to Target", leftTracker.targetAngle);
 
 		myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
 		myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
 		myNetTable->PutNumber("Right targetsFound", rightTracker.targetsFound);
 		myNetTable->PutBoolean("Right hasLeft", rightTracker.hasLeft);
 		myNetTable->PutBoolean("Right hasRight", rightTracker.hasRight);
+		myNetTable->PutNumber("Right Angle to Target", rightTracker.targetAngle);
 
 		myNetTable->PutNumber("Distance", distance);
 		myNetTable->PutNumber("Offset", offset);
@@ -758,35 +754,66 @@ int main(int argc, char *argv[])
 
 		myNetTable->PutNumber("increment", increment);
 		myNetTable->Flush();
-		if (increment % 3)
-		{
-			IplImage outImage = (IplImage)leftTracker.output;
-			mywriter.writeFrame(&outImage); //write output image over network
-		}
+
 		cv::Mat combine(240, 480, CV_8UC3);
 		int primary = myNetTable->GetNumber("Primary img", -1);
+
+		cv::Rect ROI1(0, 0, 320, 240);
+		cv::Rect ROI2(320, 0, 160, 120);
+		cv::Rect ROI3(320, 120, 160, 120);
+		//cv::Rect ROI4;
+		cv::Mat temp;
 		switch (primary)
 		{
 		case 0:
-			break;
-		case 1:
-			break;
-		case 2:
-			break;
-		case 3:
-			break;
-		default:
-			cv::Rect ROI1(0, 0, 320, 240);
-			cv::Mat temp;
-			cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
 			temp.copyTo(combine(ROI1));
-			cv::Rect ROI2(320, 0, 160, 120);
 			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
 			temp.copyTo(combine(ROI2));
-			cv::Rect ROI3(320, 120, 160, 120);
+			cv::resize(rightTracker.output, temp, cv::Size(ROI4.width, ROI4.height));
+			temp.copyTo(combine(ROI4));
+			cv::resize(backImg, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI3));*/
+			break;
+		case 1:
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI3));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI4));
+			//cv::resize(backImg, temp, cv::Size(ROI1.width, ROI1.height));
+			//temp.copyTo(combine(ROI1));*/
+			break;
+		case 2:
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI1));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI4));
+			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
+			//temp.copyTo(combine(ROI3));*/
+			break;
+		case 3:
+			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI3));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
+			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+			temp.copyTo(combine(ROI1));
+			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
+			//temp.copyTo(combine(ROI4));*/
+			break;
+		default:
+			cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			temp.copyTo(combine(ROI1));
+			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+			temp.copyTo(combine(ROI2));
 			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
 			temp.copyTo(combine(ROI3));
-			break;
+			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
+			//temp.copyTo(combine(ROI4));
 		}
 		//cv::hconcat(leftTracker.output, rightTracker.output, combine);
 		//cv::imshow("Left Output", leftTracker.output);
@@ -796,6 +823,11 @@ int main(int argc, char *argv[])
 			cv::imshow("Output", combine);
 			//cv::imshow("front", frontImg);
 			//cv::imshow("back", backImg);
+		}
+		if (increment % 3)
+		{
+			IplImage outImage = (IplImage)combine;
+			mywriter.writeFrame(&outImage); //write output image over network
 		}
 
 		increment++;
