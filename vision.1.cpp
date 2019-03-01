@@ -108,10 +108,116 @@ int findFirstCamera()
 	}
 	return -1;
 }
-class Goal : public std::vector<cv::Point>
-{
-	public:
 
+cv::Point2f findLongEdge(cv::Point2f pts[]) {
+	cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
+	cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
+
+	cv::Point2f longEdge = edge1;
+	if (cv::norm(edge2) > cv::norm(edge1))
+		longEdge = edge2;
+
+	return longEdge;
+}
+
+cv::Point2f findShortEdge(cv::Point2f pts[]) {
+	cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
+	cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
+
+	cv::Point2f shortEdge = edge1;
+	if (cv::norm(edge2) < cv::norm(edge1))
+		shortEdge = edge2;
+
+	return shortEdge;
+}
+
+float rrectAnglePts(cv::Point2f pts[]) {
+	/*Choose the longer edge of the rotated rect to compute the angle*/
+	cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
+	cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
+
+	cv::Point2f usedEdge = edge1;
+	if (cv::norm(edge2) > cv::norm(edge1))
+		usedEdge = edge2;
+
+	cv::Point2f ref = cv::Vec2f(1, 0); /*Horizontal edge*/
+
+	float angle = 180.0f / CV_PI * acos((ref.x * usedEdge.x + ref.y * usedEdge.y) / (cv::norm(ref) * cv::norm(usedEdge)));
+	return angle;	
+}
+
+float rrectAngleEdge(cv::Point2f usedEdge)
+{
+	cv::Point2f ref = cv::Vec2f(1, 0); /*Horizontal edge*/
+
+	float angle = 180.0f / CV_PI * acos((ref.x * usedEdge.x + ref.y * usedEdge.y) / (cv::norm(ref) * cv::norm(usedEdge)));
+	return angle;
+}
+
+float rrectAngleOffset(float angle)
+{
+	return fabs(90.0 - angle);
+}
+class Goal
+{
+  public:
+	std::vector<cv::Point> contour;
+	cv::Rect rect;
+	cv::RotatedRect rRect;
+	cv::Point2f pts[4];
+	cv::Point2f center;
+
+	float angle;
+	float offset;
+
+	double rHeight;
+	double rWidth;
+	double rArea;
+	double rRatio;
+
+	double cArea;
+	double cRatio;
+	double areaRatio;
+
+	bool isLeft;
+
+	Goal(std::vector<cv::Point> Contour)
+	{
+		contour = Contour;
+		rect = cv::boundingRect(contour);
+		rRect = cv::minAreaRect(contour);
+		rRect.points(pts);
+		center = rRect.center;
+
+		angle = rrectAngleEdge(findLongEdge(pts));
+		offset = rrectAngleOffset(angle);
+
+		rHeight = cv::norm(findLongEdge(pts));
+		rWidth = cv::norm(findShortEdge(pts));
+
+		/*angle = rrectAnglePts(pts);
+		offset = rrectAngleOffset(angle);
+
+		rHeight = cv::norm(pts[1] - pts[0]);
+		rWidth = cv::norm(pts[2] - pts[1]);*/
+
+		rArea = rWidth * rHeight;
+		rRatio = rWidth / rHeight;
+		if (rRatio > 1)
+		{
+			rRatio = 1 / rRatio;
+		}
+
+		cArea = cv::contourArea(contour); //(double)(rect.width*rect.height);
+		cRatio = (double)(rect.width / rect.height);
+		areaRatio = rArea / cArea;
+
+		if (angle > 90) {
+			isLeft = false;
+		} else {
+			isLeft = true;
+		}
+	}
 };
 
 class TargetTracker
@@ -174,10 +280,7 @@ class TargetTracker
 		//cv::imshow("Source", source);
 		cv::normalize(source, source, 0, 255, cv::NORM_MINMAX);
 
-		//cv::Mat output = source.clone(), poss = source.clone();
 		cv::Mat hsv;
-		//cv::Mat noise;
-
 		// TODO: don't need 3 images
 		output = source.clone();
 
@@ -188,122 +291,90 @@ class TargetTracker
 		t1 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
 		//Finding all contours
-		std::vector<std::vector<cv::Point>> contours, possible, best;
+		std::vector<std::vector<cv::Point>> contours;
+		std::vector<Goal> possible, best;
 		std::vector<cv::Vec4i> hierarchy;
 
-		// TODO: use custom class
-		//std::vector<Goal> contours;
-		
 		// TODO: don't need hierarchy
-		cv::findContours(hsv, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+		cv::findContours(hsv, contours, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+		std::cout << "\nTotal contours: " << contours.size() << std::endl;
+
 
 		//Filters out bad contours from possible goals
 		for (size_t i = 0; i < contours.size(); i++)
 		{
-			std::vector<cv::Point> current = contours[i];
-			cv::Rect rect = cv::boundingRect(current);
-			cv::RotatedRect rRect = cv::minAreaRect(current);
-			cv::Point2f pts[4];
-			rRect.points(pts);
-
-			/*Choose the longer edge of the rotated rect to compute the angle*/
-			cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
-			cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
-
-			cv::Point2f usedEdge = edge1;
-			if (cv::norm(edge2) > cv::norm(edge1))
-				usedEdge = edge2;
-
-			cv::Point2f ref = cv::Vec2f(1, 0); /*Horizontal edge*/
-
-			float angle = 180.0f / CV_PI * acos((ref.x * usedEdge.x + ref.y * usedEdge.y) / (cv::norm(ref) * cv::norm(usedEdge)));
-			float offset = fabs(90.0 - angle);
-
-			double rHeight = cv::norm(pts[1] - pts[0]);
-			double rWidth = cv::norm(pts[2] - pts[1]);
-			double rRatio = rWidth / rHeight;
-			double rArea = rWidth * rHeight;
-			if (rRatio > 1)
-			{
-				rRatio = 1 / rRatio;
-			}
-			if (rRatio < MIN_ASPECT_RATIO || rRatio > MAX_ASPECT_RATIO)
+			//std::vector<cv::Point> current = contours[i];
+			Goal goal(contours[i]);
+			if (goal.rRatio < MIN_ASPECT_RATIO || goal.rRatio > MAX_ASPECT_RATIO)
 				continue;
 			//std::cout << "Ratio: " << rRatio << std::endl;
 
-			double cArea = cv::contourArea(current); //(double)(rect.width*rect.height);
-			double cRatio = (double)(rect.width / rect.height);
-			double areaRatio = rArea / cArea;
-
 			//Checks if area is too small/aspect ratio is not close to 2/5.5
-			if (areaRatio < MIN_AREA_RATIO)
+			if (goal.areaRatio < MIN_AREA_RATIO)
 				continue;
 			//std::cout << "Area ratio: " << areaRatio << std::endl;
-			if (cArea < MIN_AREA)
+			if (goal.cArea < MIN_AREA)
 				continue;
 			//std::cout << "Area: " << cArea << std::endl;
-			if (rect.width > rect.height)
+			if (goal.rect.width > goal.rect.height)
 				continue;
 			//std::cout << "Width: " << rect.width << " Height: " << rect.height << std::endl;
-			if (offset < MIN_OFFSET || offset > MAX_OFFSET)
+			if (goal.offset < MIN_OFFSET || goal.offset > MAX_OFFSET)
 				continue;
 			//std::cout << "Offset: " << offset << std::endl;
 			//if (cRatio < 0.2 || cRatio > 0.6) continue;
 
-			possible.push_back(current);
+			possible.push_back(goal);
 		}
 
+		std::cout << "Total possibles: " << possible.size() << std::endl;
 		t2 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
 		if (possible.size() > 0)
 		{
 			double mostArea = 0, leastArea = 10000;
 			double secondMostArea = 0, secondLeastArea = 10000;
-			std::vector<cv::Point> firstBest = possible[0];
-			std::vector<cv::Point> secondBest = possible[0];
+			
+			int firstBest = 0;
+			int secondBest = 0;
 
 			//Draws mininum area rects. and centers for possible goals
 			for (size_t i = 0; i < possible.size(); i++)
 			{
-				//cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
-				//cv::Point2f pts[4];
-				//rrect.points(pts);
-				//cv::Point2f center = rrect.center;
-				double area = cv::contourArea(possible[i]);
 				//std::cout << "Lowest area filter on: " << lowestAreaFilter << std::endl;
 				if (lowestAreaFilter) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
 				{
-					if (area < secondLeastArea)
+					if (possible[i].cArea < secondLeastArea)
 					{
-						if (area <= leastArea)
+						if (possible[i].cArea <= leastArea)
 						{
 							secondLeastArea = leastArea;
 							secondBest = firstBest;
-							leastArea = area;
-							firstBest = possible[i];
+							leastArea = possible[i].cArea;
+							firstBest = i;
 						}
-						else if (area > leastArea)
+						else if (possible[i].cArea > leastArea)
 						{
-							secondLeastArea = area;
-							secondBest = possible[i];
+							secondLeastArea = possible[i].cArea;
+							secondBest = i;
 						}
 					}
 				}
 				else if (!lowestAreaFilter) //default to largest areas otherwise
 				{
-					if (area > secondMostArea)
+					if (possible[i].cArea > secondMostArea)
 					{
-						if (area >= mostArea)
+						if (possible[i].cArea >= mostArea)
 						{
 							secondMostArea = mostArea;
 							secondBest = firstBest;
-							mostArea = area;
-							firstBest = possible[i];
+							mostArea = possible[i].cArea;
+							firstBest = i;
 						}
-						else if (area < mostArea)
+						else if (possible[i].cArea < mostArea)
 						{
-							secondMostArea = area;
-							secondBest = possible[i];
+							secondMostArea = possible[i].cArea;
+							secondBest = i;
 						}
 					}
 				}
@@ -311,32 +382,11 @@ class TargetTracker
 
 			t3 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
-			best.push_back(firstBest);
+			best.push_back(possible[firstBest]);
 			if (firstBest != secondBest)
 			{
-				best.push_back(secondBest);
+				best.push_back(possible[secondBest]);
 			}
-			/*for (size_t j = 0; j < possible.size(); j++)
-			{
-				if (possible[j] == firstBest || possible[j] == secondBest)
-				{
-					possible.erase(possible.begin() + j);
-				}
-			}*/
-
-			/*for (size_t i = 0; i < possible.size(); i++)
-			{
-				if (possible[i] != firstBest && possible[i] != secondBest)
-				{
-					cv::RotatedRect rrect = cv::minAreaRect(possible[i]);
-					cv::Point2f pts[4];
-					rrect.points(pts);
-					for (unsigned int j = 0; j < 4; ++j)
-					{
-						cv::line(output, pts[j], pts[(j + 1) % 4], BLACK, 2);
-					}
-				}
-			}*/
 
 			//t4 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
@@ -348,50 +398,34 @@ class TargetTracker
 			cv::Point2f rightCenter, leftCenter;
 			for (size_t i = 0; i < best.size(); i++)
 			{
-				rrect[i] = cv::minAreaRect(best[i]);
-				cv::Point2f pts[4];
-				rrect[i].points(pts);
-				cv::Point2f center = rrect[i].center;
-				double rHeight = cv::norm(pts[1] - pts[0]);
-				double rWidth = cv::norm(pts[2] - pts[1]);
-				area[i] = rWidth * rHeight;
-				if (rHeight >= rWidth)
+				rrect[i] = best[i].rRect;
+				area[i] = best[i].rArea;
+				if (best[i].rHeight >= best[i].rWidth)
 				{
-					height[i] = rHeight;
+					height[i] = best[i].rHeight;
 				}
 				else
 				{
-					height[i] = rWidth;
+					height[i] = best[i].rWidth;
 				}
 
-				cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
-				cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
-
-				cv::Point2f usedEdge = edge1;
-				if (cv::norm(edge2) > cv::norm(edge1))
-					usedEdge = edge2;
-
-				cv::Point2f ref = cv::Vec2f(1, 0); /*Horizontal edge*/
-
-				float angle = 180.0f / CV_PI * acos((ref.x * usedEdge.x + ref.y * usedEdge.y) / (cv::norm(ref) * cv::norm(usedEdge)));
-
-				cv::circle(output, center, 2, RED);
+				cv::circle(output, best[i].center, 2, RED);
 				//Point 0 is the lowest point, height is distance between 0 and 1, width is distance between 1 and 2
 				for (unsigned int j = 0; j < 4; ++j)
 				{
 					//if (pts[0].x < pts[2].x)
-					if (angle > 90)
+					if (!best[i].isLeft)
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,255), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], PINK, 5);
-						rightCenter = center;
+						cv::line(output, best[i].pts[j], best[i].pts[(j + 1) % 4], PINK, 5);
+						rightCenter = best[i].center;
 						isLeft[i] = false;
 					}
 					else
 					{
 						//cv::drawContours(output, best, i, cv::Scalar(255,0,0), 2);
-						cv::line(output, pts[j], pts[(j + 1) % 4], YELLOW, 5);
-						leftCenter = center;
+						cv::line(output, best[i].pts[j], best[i].pts[(j + 1) % 4], YELLOW, 5);
+						leftCenter = best[i].center;
 						isLeft[i] = true;
 					}
 				}
