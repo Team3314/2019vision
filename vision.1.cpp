@@ -394,7 +394,7 @@ class TargetTracker
 			}
 		}
 
-		// must sort in order to make sure that we remove from the back.
+		// must sort in order to ensure that we remove from the back.
 		//std::cout << "reject size " << rejects.size() << std::endl;
 		std::sort(rejects.begin(),rejects.end());
 		for (size_t i = rejects.size(); i > 0; i--)
