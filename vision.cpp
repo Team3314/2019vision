@@ -110,7 +110,7 @@ int findFirstCamera()
 }
 class Goal : public std::vector<cv::Point>
 {
-	public:
+  public:
 };
 
 class TargetTracker
@@ -192,7 +192,7 @@ class TargetTracker
 
 		// TODO: use custom class
 		//std::vector<Goal> contours;
-		
+
 		// TODO: don't need hierarchy
 		cv::findContours(hsv, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 

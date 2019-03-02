@@ -253,6 +253,8 @@ class TargetTracker
 
 	double baseOffset = 0;
 	double multiplier = 0;
+	cv::Scalar minHSV{55, 80, 35};
+	cv::Scalar maxHSV{120, 255, 255};
 
 	double targetX = 0;
 	double targetY = 0;
@@ -268,12 +270,14 @@ class TargetTracker
 	bool hasRight = false;
 	bool lowestAreaFilter = false;
 
-	TargetTracker(int Device, double BaseOffset, double Multiplier)
+	TargetTracker(int Device, double BaseOffset, double Multiplier, cv::Scalar MinHSV, cv::Scalar MaxHSV)
 		: input(Device)
 	{
 		device = Device;
 		baseOffset = BaseOffset;
 		multiplier = Multiplier;
+		minHSV = MinHSV;
+		maxHSV = MaxHSV;
 		setVideoCaps(input);
 	}
 
@@ -307,7 +311,7 @@ class TargetTracker
 
 		//HSV threshold
 		cv::cvtColor(source, hsv, cv::COLOR_BGR2HSV);
-		cv::inRange(hsv, MIN_HSV, MAX_HSV, hsv);
+		cv::inRange(hsv, minHSV, maxHSV, hsv);
 
 		t1 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
@@ -655,6 +659,8 @@ int main(int argc, char *argv[])
 	double rightCameraAngle = 9.5; //deg
 	double cameraSeparation = 22;  //inches
 	double lastGoodDistance = -1;
+	cv::Scalar minHueSatVal(55, 80, 35);
+	cv::Scalar maxHueSatVal(120, 255, 245);
 
 	std::vector<std::string> args(argv, argv + argc);
 	for (size_t i = 1; i < args.size(); ++i)
@@ -767,6 +773,14 @@ int main(int argc, char *argv[])
 		{
 			cameraSeparation = stod(args[i + 1]);
 		}
+		if (args[i] == "minhsv")
+		{
+			minHueSatVal = cv::Scalar(stoi(args[i+1]),stoi(args[i+2]),stoi(args[1+3]));
+		}
+		if (args[i] == "maxhsv")
+		{
+			maxHueSatVal = cv::Scalar(stoi(args[i+1]),stoi(args[i+2]),stoi(args[1+3]));
+		}
 	}
 
 	int firstCamera = findFirstCamera();
@@ -802,8 +816,8 @@ int main(int argc, char *argv[])
 
 	long long increment = 0;
 
-	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER);
-	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER);
+	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER, minHueSatVal, maxHueSatVal);
+	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER, minHueSatVal, maxHueSatVal);
 	cv::VideoCapture frontCamera(frontCameraID);
 	//cv::VideoCapture backCamera(backCameraID);
 	cv::Mat frontImg, backImg;
