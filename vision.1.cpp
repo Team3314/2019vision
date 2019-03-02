@@ -323,7 +323,7 @@ class TargetTracker
 		std::vector<int> rejects;
 		for (size_t i = 0; i < size && size < 20; i++)
 		{
-			double cArea1 = cv::contourArea(contours[i]);
+			//double cArea1 = cv::contourArea(contours[i]);
 			//if (cArea1 < 25) continue;
 			cv::RotatedRect rRect1 = cv::minAreaRect(contours[i]);
 			cv::Point2f pts1[4];
@@ -332,7 +332,7 @@ class TargetTracker
 			double max = pts1[2].x;
 			for (size_t j = i + 1; j < size; j++)
 			{
-				double cArea2 = cv::contourArea(contours[j]);
+				//double cArea2 = cv::contourArea(contours[j]);
 				//if (cArea2 < 25) continue;
 				cv::RotatedRect rRect2 = cv::minAreaRect(contours[j]);
 				cv::Point2f pts2[4];
@@ -354,41 +354,52 @@ class TargetTracker
 
 					contours.push_back(hull);
 
-					// this is ugly! but ... time is short (Consider using set)
-					bool notThere = true;
-					for (int k = 0; k < rejects.size(); k++)
-					{
-						if (rejects[k] == i)
-						{
-							notThere = false;
-							break;
-						}
-					}
-					if (notThere)
-						rejects.push_back(i);
+					// this is ugly! but ... time is short
+					// TODO: replace with:
+					//if(std::find(v.begin(), v.end(), x) != v.end()) {
+					//    /* v contains x */
+					//} else {
+					//    /* v does not contain x */
+					//}
 
-					notThere = true;
-					for (int k = 0; k < rejects.size(); k++)
-					{
-						if (rejects[k] == j)
-						{
-							notThere = false;
-							break;
-						}
-					}
-					if (notThere)
+					//bool notThere = true;
+					//for (int k = 0; k < rejects.size(); k++)
+					//{
+					//	if (rejects[k] == i)
+					//	{
+					//		notThere = false;
+					//		break;
+					//	}
+					//}
+					//if (notThere)
+					//	rejects.push_back(i);
+
+					//notThere = true;
+					//for (int k = 0; k < rejects.size(); k++)
+					//{
+					//	if (rejects[k] == j)
+					//	{
+					//		notThere = false;
+					//		break;
+					//	}
+					// }
+					// if (notThere)
+					// 	rejects.push_back(j);
+					if(std::find(rejects.begin(), rejects.end(), i) == rejects.end())
+						rejects.push_back(i);
+					if(std::find(rejects.begin(), rejects.end(), j) == rejects.end())
 						rejects.push_back(j);
 
-					//possible.erase(possible.begin() + i);
-					//possible.erase(possible.begin() + j);
 				}
 			}
 		}
-		std::cout << "reject size " << rejects.size() << std::endl;
+
+		// must sort in order to make sure that we remove from the back.
+		//std::cout << "reject size " << rejects.size() << std::endl;
 		std::sort(rejects.begin(),rejects.end());
 		for (size_t i = rejects.size(); i > 0; i--)
 		{
-			std::cout << "erasing " << i - 1 << " " << rejects[i - 1] << std::endl;
+			//std::cout << "erasing " << i - 1 << " " << rejects[i - 1] << std::endl;
 			contours.erase(contours.begin() + rejects[i - 1]);
 		}
 
