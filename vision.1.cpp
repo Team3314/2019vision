@@ -324,16 +324,16 @@ class TargetTracker
 		for (size_t i = 0; i < size && size < 20; i++)
 		{
 			double cArea1 = cv::contourArea(contours[i]);
-			//if (cArea1 < 25) continue; 
+			//if (cArea1 < 25) continue;
 			cv::RotatedRect rRect1 = cv::minAreaRect(contours[i]);
 			cv::Point2f pts1[4];
 			rRect1.points(pts1);
 			double min = pts1[0].x;
 			double max = pts1[2].x;
-			for (size_t j = i+1; j < size; j++)
+			for (size_t j = i + 1; j < size; j++)
 			{
 				double cArea2 = cv::contourArea(contours[j]);
-				//if (cArea2 < 25) continue; 
+				//if (cArea2 < 25) continue;
 				cv::RotatedRect rRect2 = cv::minAreaRect(contours[j]);
 				cv::Point2f pts2[4];
 				rRect2.points(pts2);
@@ -353,15 +353,43 @@ class TargetTracker
 					cv::convexHull(cv::Mat(points), hull);
 
 					contours.push_back(hull);
-					rejects.push_back(i);
-					rejects.push_back(j);
+
+					// this is ugly! but ... time is short (Consider using set)
+					bool notThere = true;
+					for (int k = 0; k < rejects.size(); k++)
+					{
+						if (rejects[k] == i)
+						{
+							notThere = false;
+							break;
+						}
+					}
+					if (notThere)
+						rejects.push_back(i);
+
+					notThere = true;
+					for (int k = 0; k < rejects.size(); k++)
+					{
+						if (rejects[k] == j)
+						{
+							notThere = false;
+							break;
+						}
+					}
+					if (notThere)
+						rejects.push_back(j);
+
 					//possible.erase(possible.begin() + i);
 					//possible.erase(possible.begin() + j);
 				}
 			}
 		}
-		for (size_t i = rejects.size() - 1; i >= 0; i--) {
-		//contours.erase(contours.begin()+rejects[i]);
+		std::cout << "reject size " << rejects.size() << std::endl;
+		std::sort(rejects.begin(),rejects.end());
+		for (size_t i = rejects.size(); i > 0; i--)
+		{
+			std::cout << "erasing " << i - 1 << " " << rejects[i - 1] << std::endl;
+			contours.erase(contours.begin() + rejects[i - 1]);
 		}
 
 		//Filters out bad contours from possible goals
@@ -369,8 +397,8 @@ class TargetTracker
 		{
 			//std::vector<cv::Point> current = contours[i];
 			Goal goal(contours[i]);
-			if (goal.rRatio < MIN_ASPECT_RATIO || goal.rRatio > MAX_ASPECT_RATIO)
-				continue;
+			//if (goal.rRatio < MIN_ASPECT_RATIO || goal.rRatio > MAX_ASPECT_RATIO)
+			//	continue;
 			//std::cout << "Ratio: " << rRatio << std::endl;
 
 			//Checks if area is too small/aspect ratio is not close to 2/5.5
@@ -759,48 +787,50 @@ int main(int argc, char *argv[])
 		rightTracker.capture();
 		frontCamera.read(frontImg);
 		//backCamera.read(backImg);
-		leftTracker.analyze();
-		rightTracker.analyze();
-
-		if (verbose)
+		if (leftTracker.frame > 100 && rightTracker.frame > 100)
 		{
-			std::cout << "\nIncrement: " << increment << std::endl;
-			std::cout << "LEFT" << std::endl;
-			std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
-			std::cout << "Target angle: " << leftTracker.targetAngle << std::endl;
-			std::cout << "RIGHT" << std::endl;
-			std::cout << "centeredTargetX: " << rightTracker.centeredTargetX << std::endl;
-			std::cout << "Target angle: " << rightTracker.targetAngle << std::endl;
-		}
+			leftTracker.analyze();
+			rightTracker.analyze();
 
-		if (leftTracker.targetsFound == 2 && rightTracker.targetsFound == 2)
-		{
-			double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
-			double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
-			//std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
+			if (verbose)
+			{
+				std::cout << "\nIncrement: " << increment << std::endl;
+				std::cout << "LEFT" << std::endl;
+				std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
+				std::cout << "Target angle: " << leftTracker.targetAngle << std::endl;
+				std::cout << "RIGHT" << std::endl;
+				std::cout << "centeredTargetX: " << rightTracker.centeredTargetX << std::endl;
+				std::cout << "Target angle: " << rightTracker.targetAngle << std::endl;
+			}
 
-			// TODO: distance can't be modifed here,
-			// because it is used in the calculations below.
-			// This needs to remain the camera distance for now.
-			// Maybe split it out... camDistance and botDistance?
-			distance = (cameraSeparation / (tanLeft + tanRight)); //subtract dist from frame (5in)
-			lastGoodDistance = distance;
-			botDistance = distance - 5;
-			//offset = tanLeft * distance - cameraSeparation/2;
-			/*angleToTarget = ((180 / CV_PI) * atan((tanLeft * distance - cameraSeparation / 2) / distance) +
+			if (leftTracker.targetsFound == 2 && rightTracker.targetsFound == 2)
+			{
+				double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
+				double tanRight = tan((CV_PI / 180) * -rightTracker.targetAngle);
+				//std::cout << "Tans - left" << tanLeft << "   " << tanRight << "   " << tanLeft + tanRight << std::endl;
+
+				// TODO: distance can't be modifed here,
+				// because it is used in the calculations below.
+				// This needs to remain the camera distance for now.
+				// Maybe split it out... camDistance and botDistance?
+				distance = (cameraSeparation / (tanLeft + tanRight)); //subtract dist from frame (5in)
+				lastGoodDistance = distance;
+				botDistance = distance - 5;
+				//offset = tanLeft * distance - cameraSeparation/2;
+				/*angleToTarget = ((180 / CV_PI) * atan((tanLeft * distance - cameraSeparation / 2) / distance) +
 							 (180 / CV_PI) * atan((tanRight * distance + cameraSeparation / 2) / distance)) /
 							2;*/
-			angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
-		}
-		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1 && leftTracker.hasLeft && rightTracker.hasRight)
-		{
-			double tanLeft = tan((CV_PI / 180) * leftTracker.leftTargetAngle);
-			double tanRight = tan((CV_PI / 180) * -rightTracker.rightTargetAngle);
-			angleToTarget = leftTracker.leftTargetAngle + rightTracker.rightTargetAngle;
-			distance = ((cameraSeparation - 11) / (tanLeft + tanRight));
-			botDistance = distance - 5;
-		}
-		/*else if (leftTracker.targetsFound == 2)
+				angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
+			}
+			else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1 && leftTracker.hasLeft && rightTracker.hasRight)
+			{
+				double tanLeft = tan((CV_PI / 180) * leftTracker.leftTargetAngle);
+				double tanRight = tan((CV_PI / 180) * -rightTracker.rightTargetAngle);
+				angleToTarget = leftTracker.leftTargetAngle + rightTracker.rightTargetAngle;
+				distance = ((cameraSeparation - 11) / (tanLeft + tanRight));
+				botDistance = distance - 5;
+			}
+			/*else if (leftTracker.targetsFound == 2)
 		{
 			if (lastGoodDistance > 36)
 			{
@@ -814,58 +844,58 @@ int main(int argc, char *argv[])
 				angleToTarget = -10;
 			}
 		}*/
-		/*
+			/*
 		else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1)
 		{
 			angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
 		}*/
-		/*else if (rightTracker.targetsFound == 2)
+			/*else if (rightTracker.targetsFound == 2)
 		{
 			angleToTarget = rightTracker.targetAngle;
 		}*/
 
-		//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-		myNetTable->PutNumber("Left targetX", leftTracker.centeredTargetX);
-		myNetTable->PutNumber("Left targetY", leftTracker.centeredTargetY);
-		myNetTable->PutNumber("Left targetsFound", leftTracker.targetsFound);
-		myNetTable->PutBoolean("Left hasLeft", leftTracker.hasLeft);
-		myNetTable->PutBoolean("Left hasRight", leftTracker.hasRight);
-		myNetTable->PutNumber("Left Angle to Target", leftTracker.targetAngle);
+			//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+			myNetTable->PutNumber("Left targetX", leftTracker.centeredTargetX);
+			myNetTable->PutNumber("Left targetY", leftTracker.centeredTargetY);
+			myNetTable->PutNumber("Left targetsFound", leftTracker.targetsFound);
+			myNetTable->PutBoolean("Left hasLeft", leftTracker.hasLeft);
+			myNetTable->PutBoolean("Left hasRight", leftTracker.hasRight);
+			myNetTable->PutNumber("Left Angle to Target", leftTracker.targetAngle);
 
-		myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
-		myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
-		myNetTable->PutNumber("Right targetsFound", rightTracker.targetsFound);
-		myNetTable->PutBoolean("Right hasLeft", rightTracker.hasLeft);
-		myNetTable->PutBoolean("Right hasRight", rightTracker.hasRight);
-		myNetTable->PutNumber("Right Angle to Target", rightTracker.targetAngle);
+			myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
+			myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
+			myNetTable->PutNumber("Right targetsFound", rightTracker.targetsFound);
+			myNetTable->PutBoolean("Right hasLeft", rightTracker.hasLeft);
+			myNetTable->PutBoolean("Right hasRight", rightTracker.hasRight);
+			myNetTable->PutNumber("Right Angle to Target", rightTracker.targetAngle);
 
-		myNetTable->PutNumber("Distance", distance);
-		myNetTable->PutNumber("Offset", offset);
-		myNetTable->PutNumber("Angle To Target", angleToTarget);
+			myNetTable->PutNumber("Distance", distance);
+			myNetTable->PutNumber("Offset", offset);
+			myNetTable->PutNumber("Angle To Target", angleToTarget);
 
-		if (verbose)
-		{
-			std::cout << "COMBINED" << std::endl;
-			std::cout << "Combined distance: " << distance << std::endl;
-			std::cout << "Combined offset: " << offset << std::endl;
-			std::cout << "Combined angle: " << angleToTarget << std::endl;
-		}
+			if (verbose)
+			{
+				std::cout << "COMBINED" << std::endl;
+				std::cout << "Combined distance: " << distance << std::endl;
+				std::cout << "Combined offset: " << offset << std::endl;
+				std::cout << "Combined angle: " << angleToTarget << std::endl;
+			}
 
-		myNetTable->PutNumber("increment", increment);
-		myNetTable->Flush();
+			myNetTable->PutNumber("increment", increment);
+			myNetTable->Flush();
 
-		cv::Mat combine(240, 480, CV_8UC3);
-		int primary = myNetTable->GetNumber("Primary img", -1);
+			cv::Mat combine(240, 480, CV_8UC3);
+			int primary = myNetTable->GetNumber("Primary img", -1);
 
-		cv::Rect ROI1(0, 0, 320, 240);
-		cv::Rect ROI2(320, 0, 160, 120);
-		cv::Rect ROI3(320, 120, 160, 120);
-		//cv::Rect ROI4;
-		cv::Mat temp;
-		switch (primary)
-		{
-		case 0:
-			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+			cv::Rect ROI1(0, 0, 320, 240);
+			cv::Rect ROI2(320, 0, 160, 120);
+			cv::Rect ROI3(320, 120, 160, 120);
+			//cv::Rect ROI4;
+			cv::Mat temp;
+			switch (primary)
+			{
+			case 0:
+				/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
 			temp.copyTo(combine(ROI1));
 			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
 			temp.copyTo(combine(ROI2));
@@ -873,9 +903,9 @@ int main(int argc, char *argv[])
 			temp.copyTo(combine(ROI4));
 			cv::resize(backImg, temp, cv::Size(ROI3.width, ROI3.height));
 			temp.copyTo(combine(ROI3));*/
-			break;
-		case 1:
-			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+				break;
+			case 1:
+				/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
 			temp.copyTo(combine(ROI3));
 			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
 			temp.copyTo(combine(ROI2));
@@ -883,9 +913,9 @@ int main(int argc, char *argv[])
 			temp.copyTo(combine(ROI4));
 			//cv::resize(backImg, temp, cv::Size(ROI1.width, ROI1.height));
 			//temp.copyTo(combine(ROI1));*/
-			break;
-		case 2:
-			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+				break;
+			case 2:
+				/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
 			temp.copyTo(combine(ROI2));
 			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
 			temp.copyTo(combine(ROI1));
@@ -893,9 +923,9 @@ int main(int argc, char *argv[])
 			temp.copyTo(combine(ROI4));
 			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
 			//temp.copyTo(combine(ROI3));*/
-			break;
-		case 3:
-			/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+				break;
+			case 3:
+				/*cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
 			temp.copyTo(combine(ROI3));
 			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
 			temp.copyTo(combine(ROI2));
@@ -903,34 +933,35 @@ int main(int argc, char *argv[])
 			temp.copyTo(combine(ROI1));
 			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
 			//temp.copyTo(combine(ROI4));*/
-			break;
-		default:
-			cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
-			temp.copyTo(combine(ROI1));
-			cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
-			temp.copyTo(combine(ROI2));
-			cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
-			temp.copyTo(combine(ROI3));
-			//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
-			//temp.copyTo(combine(ROI4));
-		}
-		//cv::hconcat(leftTracker.output, rightTracker.output, combine);
-		//cv::imshow("Left Output", leftTracker.output);
-		//cv::imshow("Right Output", rightTracker.output);
-		if (showOutputWindow)
-		{
-			cv::imshow("Output", combine);
-			//cv::imshow("front", frontImg);
-			//cv::imshow("back", backImg);
-		}
-		if (increment % 3)
-		{
-			IplImage outImage = (IplImage)combine;
-			mywriter.writeFrame(&outImage); //write output image over network
-		}
+				break;
+			default:
+				cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+				temp.copyTo(combine(ROI1));
+				cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+				temp.copyTo(combine(ROI2));
+				cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+				temp.copyTo(combine(ROI3));
+				//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
+				//temp.copyTo(combine(ROI4));
+			}
+			//cv::hconcat(leftTracker.output, rightTracker.output, combine);
+			//cv::imshow("Left Output", leftTracker.output);
+			//cv::imshow("Right Output", rightTracker.output);
+			if (showOutputWindow)
+			{
+				cv::imshow("Output", combine);
+				//cv::imshow("front", frontImg);
+				//cv::imshow("back", backImg);
+			}
+			if (increment % 3)
+			{
+				IplImage outImage = (IplImage)combine;
+				mywriter.writeFrame(&outImage); //write output image over network
+			}
 
-		increment++;
-		cv::waitKey(1);
+			increment++;
+			cv::waitKey(1);
+		}
 	}
 	cv::waitKey();
 }
