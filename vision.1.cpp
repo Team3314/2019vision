@@ -7,7 +7,7 @@
 //GUI to fix thresholding []
 //Confidence levels []
 //PRIORITY: account for targets obstructed by hatch[]
-//PRIORITY: custom goal class, cleaning up/optimizing analysis
+//PRIORITY: pairing correct lefts/rights []
 
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
@@ -20,9 +20,6 @@ std::string create_write_pipeline(int width, int height, int framerate,
 			"videoconvert ! omxh264enc bitrate=%d ! video/x-h264, stream-format=(string)byte-stream ! h264parse ! rtph264pay ! "
 			"udpsink host=%s port=%d",
 			width, height, framerate, bitrate, ip.c_str(), port);
-
-	/*sprintf(buff,
-	"appsrc ! video/x-raw, format=(string)I420, width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! omxh264enc bitrate=%d ! video/x-h264, stream-format=(string)byte-stream ! h264parse ! rtph264pay ! udpsink host=%s port=%d", width, height, framerate, bitrate, ip.c_str(), port);*/
 
 	std::string pipstring = buff;
 
@@ -109,7 +106,8 @@ int findFirstCamera()
 	return -1;
 }
 
-cv::Point2f findLongEdge(cv::Point2f pts[]) {
+cv::Point2f findLongEdge(cv::Point2f pts[])
+{
 	cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
 	cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
 
@@ -120,7 +118,8 @@ cv::Point2f findLongEdge(cv::Point2f pts[]) {
 	return longEdge;
 }
 
-cv::Point2f findShortEdge(cv::Point2f pts[]) {
+cv::Point2f findShortEdge(cv::Point2f pts[])
+{
 	cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
 	cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
 
@@ -131,7 +130,8 @@ cv::Point2f findShortEdge(cv::Point2f pts[]) {
 	return shortEdge;
 }
 
-float rrectAnglePts(cv::Point2f pts[]) {
+float rrectAnglePts(cv::Point2f pts[])
+{
 	/*Choose the longer edge of the rotated rect to compute the angle*/
 	cv::Point2f edge1 = cv::Vec2f(pts[1].x, pts[1].y) - cv::Vec2f(pts[0].x, pts[0].y);
 	cv::Point2f edge2 = cv::Vec2f(pts[2].x, pts[2].y) - cv::Vec2f(pts[1].x, pts[1].y);
@@ -143,7 +143,7 @@ float rrectAnglePts(cv::Point2f pts[]) {
 	cv::Point2f ref = cv::Vec2f(1, 0); /*Horizontal edge*/
 
 	float angle = 180.0f / CV_PI * acos((ref.x * usedEdge.x + ref.y * usedEdge.y) / (cv::norm(ref) * cv::norm(usedEdge)));
-	return angle;	
+	return angle;
 }
 
 float rrectAngleEdge(cv::Point2f usedEdge)
@@ -158,6 +158,20 @@ float rrectAngleOffset(float angle)
 {
 	return fabs(90.0 - angle);
 }
+
+bool isBetween(double min, double max, double min2, double max2)
+{
+	if (min >= min2 && min <= max2)
+		return true;
+	if (max >= min2 && max <= max2)
+		return true;
+	if (min2 >= min && min2 <= max)
+		return true;
+	if (max2 >= min && max2 <= max)
+		return true;
+	return false;
+}
+
 class Goal
 {
   public:
@@ -212,9 +226,12 @@ class Goal
 		cRatio = (double)(rect.width / rect.height);
 		areaRatio = rArea / cArea;
 
-		if (angle > 90) {
+		if (angle > 90)
+		{
 			isLeft = false;
-		} else {
+		}
+		else
+		{
 			isLeft = true;
 		}
 	}
@@ -299,6 +316,53 @@ class TargetTracker
 		cv::findContours(hsv, contours, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 		std::cout << "\nTotal contours: " << contours.size() << std::endl;
 
+		//take min and max x-pos of two contours in question
+		//if any x-pos in between, passes
+		//if passes, convex hull around 2 and erase old two contours
+		int size = contours.size();
+		std::vector<int> rejects;
+		for (size_t i = 0; i < size && size < 20; i++)
+		{
+			double cArea1 = cv::contourArea(contours[i]);
+			//if (cArea1 < 25) continue; 
+			cv::RotatedRect rRect1 = cv::minAreaRect(contours[i]);
+			cv::Point2f pts1[4];
+			rRect1.points(pts1);
+			double min = pts1[0].x;
+			double max = pts1[2].x;
+			for (size_t j = i+1; j < size; j++)
+			{
+				double cArea2 = cv::contourArea(contours[j]);
+				//if (cArea2 < 25) continue; 
+				cv::RotatedRect rRect2 = cv::minAreaRect(contours[j]);
+				cv::Point2f pts2[4];
+				rRect2.points(pts2);
+				double min2 = pts2[0].x;
+				double max2 = pts2[2].x;
+
+				if (isBetween(min, max, min2, max2))
+				{
+					//convex hull around 2 contours
+					//push back convex hull
+					//erase position of two separate contours
+					std::cout << "in between: " << isBetween(min, max, min2, max2) << std::endl;
+					std::vector<cv::Point> points, hull;
+
+					points.insert(points.end(), contours[i].begin(), contours[i].end());
+					points.insert(points.end(), contours[j].begin(), contours[j].end());
+					cv::convexHull(cv::Mat(points), hull);
+
+					contours.push_back(hull);
+					rejects.push_back(i);
+					rejects.push_back(j);
+					//possible.erase(possible.begin() + i);
+					//possible.erase(possible.begin() + j);
+				}
+			}
+		}
+		for (size_t i = rejects.size() - 1; i >= 0; i--) {
+		//contours.erase(contours.begin()+rejects[i]);
+		}
 
 		//Filters out bad contours from possible goals
 		for (size_t i = 0; i < contours.size(); i++)
@@ -334,7 +398,7 @@ class TargetTracker
 		{
 			double mostArea = 0, leastArea = 10000;
 			double secondMostArea = 0, secondLeastArea = 10000;
-			
+
 			int firstBest = 0;
 			int secondBest = 0;
 
@@ -527,10 +591,10 @@ int main(int argc, char *argv[])
 	bool showOutputWindow = false;
 	std::string ntIP = "10.33.14.2";
 	std::string streamIP = "10.33.14.5";
-	int leftCameraID = 3;
-	int rightCameraID = 4;
-	int frontCameraID = 5;
-	int backCameraID = 6;
+	int leftCameraID = 0;
+	int rightCameraID = 1;
+	int frontCameraID = 2;
+	int backCameraID = 3;
 	double leftCameraAngle = 0;   //deg
 	double rightCameraAngle = 0;  //deg
 	double cameraSeparation = 22; //inches
