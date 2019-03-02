@@ -194,6 +194,8 @@ class Goal
 	double areaRatio;
 
 	bool isLeft;
+	bool isRight;
+	std::vector<cv::Point> partner;
 
 	Goal(std::vector<cv::Point> Contour)
 	{
@@ -229,10 +231,12 @@ class Goal
 		if (angle > 90)
 		{
 			isLeft = false;
+			isRight = true;
 		}
 		else
 		{
 			isLeft = true;
+			isRight = false;
 		}
 	}
 };
@@ -345,7 +349,7 @@ class TargetTracker
 					//convex hull around 2 contours
 					//push back convex hull
 					//erase position of two separate contours
-					std::cout << "in between: " << isBetween(min, max, min2, max2) << std::endl;
+					std::cout << "in between horiz: " << isBetween(min, max, min2, max2) << std::endl;
 					std::vector<cv::Point> points, hull;
 
 					points.insert(points.end(), contours[i].begin(), contours[i].end());
@@ -354,52 +358,20 @@ class TargetTracker
 
 					contours.push_back(hull);
 
-					// this is ugly! but ... time is short
-					// TODO: replace with:
-					//if(std::find(v.begin(), v.end(), x) != v.end()) {
-					//    /* v contains x */
-					//} else {
-					//    /* v does not contain x */
-					//}
-
-					//bool notThere = true;
-					//for (int k = 0; k < rejects.size(); k++)
-					//{
-					//	if (rejects[k] == i)
-					//	{
-					//		notThere = false;
-					//		break;
-					//	}
-					//}
-					//if (notThere)
-					//	rejects.push_back(i);
-
-					//notThere = true;
-					//for (int k = 0; k < rejects.size(); k++)
-					//{
-					//	if (rejects[k] == j)
-					//	{
-					//		notThere = false;
-					//		break;
-					//	}
-					// }
-					// if (notThere)
-					// 	rejects.push_back(j);
-					if(std::find(rejects.begin(), rejects.end(), i) == rejects.end())
+					if (std::find(rejects.begin(), rejects.end(), i) == rejects.end())
 						rejects.push_back(i);
-					if(std::find(rejects.begin(), rejects.end(), j) == rejects.end())
+					if (std::find(rejects.begin(), rejects.end(), j) == rejects.end())
 						rejects.push_back(j);
-
 				}
 			}
 		}
+		for (int i = 0; i < contours.size(); i++)
+			cv::drawContours(output, contours, i, WHITE, 2);
 
 		// must sort in order to ensure that we remove from the back.
-		//std::cout << "reject size " << rejects.size() << std::endl;
-		std::sort(rejects.begin(),rejects.end());
+		std::sort(rejects.begin(), rejects.end());
 		for (size_t i = rejects.size(); i > 0; i--)
 		{
-			//std::cout << "erasing " << i - 1 << " " << rejects[i - 1] << std::endl;
 			contours.erase(contours.begin() + rejects[i - 1]);
 		}
 
@@ -432,6 +404,50 @@ class TargetTracker
 
 		std::cout << "Total possibles: " << possible.size() << std::endl;
 		t2 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+
+		double bestDistBetween = 10000;
+		if (possible.size() > 1)
+		{
+			//match left and right pairs
+			int size = possible.size();
+			for (size_t i = 0; i < size && size < 20; i++)
+			{
+				double min = possible[i].pts[2].y;
+				double max = possible[i].pts[0].y;
+				for (size_t j = i + 1; j < size; j++)
+				{
+					double min2 = possible[j].pts[2].y;
+					double max2 = possible[j].pts[0].y;
+					if (possible[i].isLeft == possible[j].isLeft)
+						continue;
+					if (!isBetween(min, max, min2, max2))
+						continue;
+					double currentDistBetween = fabs(possible[i].center.x - possible[j].center.x);
+					if (currentDistBetween > bestDistBetween)
+						continue;
+
+					//if (isBetween(min, max, min2, max2) && possible[i].isLeft != possible[j].isLeft)
+					//{
+					//convex hull around 2 contours
+					//push back convex hull
+					//erase position of two separate contours
+					std::cout << "in between vert: " << isBetween(min, max, min2, max2) << std::endl;
+					//std::vector<cv::Point> points, hull;
+					//Goal mergedGoal;
+
+					//points.insert(points.end(), possible[i].contour.begin(), possible[i].contour.end());
+					//points.insert(points.end(), possible[j].contour.begin(), possible[j].contour.end());
+					//cv::convexHull(cv::Mat(points), hull);
+
+					//possible.push_back(mergedGoal(hull));
+					bestDistBetween = currentDistBetween;
+					possible[i].partner = possible[j].contour;
+					possible[j].partner = possible[i].contour;
+					cv::line(output, possible[i].center, possible[j].center, GREEN, 2);
+					//}
+				}
+			}
+		}
 
 		if (possible.size() > 0)
 		{
@@ -626,6 +642,7 @@ int main(int argc, char *argv[])
 {
 	// default to robot mode
 	bool robot = true;
+	bool debug = false;
 	bool verbose = false;
 	bool showOutputWindow = false;
 	std::string ntIP = "10.33.14.2";
@@ -634,9 +651,9 @@ int main(int argc, char *argv[])
 	int rightCameraID = 1;
 	int frontCameraID = 2;
 	int backCameraID = 3;
-	double leftCameraAngle = 0;   //deg
-	double rightCameraAngle = 0;  //deg
-	double cameraSeparation = 22; //inches
+	double leftCameraAngle = -9.5; //deg
+	double rightCameraAngle = 9.5; //deg
+	double cameraSeparation = 22;  //inches
 	double lastGoodDistance = -1;
 
 	std::vector<std::string> args(argv, argv + argc);
@@ -661,6 +678,7 @@ int main(int argc, char *argv[])
 		if (args[i] == "dev")
 		{
 			robot = false;
+			debug = true;
 			verbose = true;
 			showOutputWindow = true;
 			ntIP = "192.168.1.198";
@@ -669,13 +687,30 @@ int main(int argc, char *argv[])
 			rightCameraID = 1;
 			frontCameraID = 2;
 			backCameraID = 3;
-			leftCameraAngle = 0;   //deg
-			rightCameraAngle = 0;  //deg
-			cameraSeparation = 22; //inches
+			leftCameraAngle = 9.5;   //deg
+			rightCameraAngle = -9.5; //deg
+			cameraSeparation = 22;   //inches
+		}
+		if (args[i] == "debug")
+		{
+			robot = true;
+			debug = true;
+			verbose = false;
+			showOutputWindow = true;
+			ntIP = "10.33.14.2";
+			streamIP = "10.33.14.15";
+			leftCameraID = 0;
+			rightCameraID = 1;
+			frontCameraID = 2;
+			backCameraID = 3;
+			leftCameraAngle = 9.5;
+			rightCameraAngle = -9.5;
+			cameraSeparation = 22;
 		}
 		if (args[i] == "robot")
 		{
 			robot = true;
+			debug = false;
 			verbose = false;
 			showOutputWindow = false;
 			ntIP = "10.33.14.2";
@@ -684,9 +719,9 @@ int main(int argc, char *argv[])
 			rightCameraID = 1;
 			frontCameraID = 2;
 			backCameraID = 3;
-			leftCameraAngle = 0;   //deg
-			rightCameraAngle = 0;  //deg
-			cameraSeparation = 22; //inches
+			leftCameraAngle = 9.5;   //deg
+			rightCameraAngle = -9.5; //deg
+			cameraSeparation = 22;   //inches
 		}
 		if (args[i] == "ntip")
 		{
@@ -960,9 +995,17 @@ int main(int argc, char *argv[])
 			//cv::imshow("Right Output", rightTracker.output);
 			if (showOutputWindow)
 			{
-				cv::imshow("Output", combine);
-				//cv::imshow("front", frontImg);
-				//cv::imshow("back", backImg);
+				if (debug)
+				{
+					cv::imshow("Left Output", leftTracker.output);
+					cv::imshow("Right Output", rightTracker.output);
+				}
+				else
+				{
+					cv::imshow("Output", combine);
+					//cv::imshow("front", frontImg);
+					//cv::imshow("back", backImg);
+				}
 			}
 			if (increment % 3)
 			{

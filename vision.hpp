@@ -39,7 +39,7 @@ const double FOV_RADIANS = (LEFT_MULTIPLIER + RIGHT_MULTIPLIER) / 2 * OPENCV_WID
 // Output stream parameters
 const int STREAM_WIDTH = 480, STREAM_HEIGHT = 240, FRAMERATE = 15, BITRATE = 300000, PORT = 5001;
 
-const cv::Scalar MIN_HSV(55, 80, 70);
+const cv::Scalar MIN_HSV(55, 80, 35);
 const cv::Scalar MAX_HSV(255, 255, 255);
 
 const double MIN_ASPECT_RATIO = 0.2, MAX_ASPECT_RATIO = 0.6, MIN_AREA_RATIO = 0.5, MIN_AREA = 25, MIN_OFFSET = 3, MAX_OFFSET = 25;
@@ -48,5 +48,6 @@ const cv::Scalar WHITE(255, 255, 255);
 const cv::Scalar RED(0, 0, 255);
 const cv::Scalar PINK(255, 0, 255);
 const cv::Scalar YELLOW(0, 255, 255);
+const cv::Scalar GREEN(0, 255, 0);
 
 #endif
