@@ -1,14 +1,12 @@
 #include "vision.hpp"
 
 //TODO
-//time frame grabs []
-//finish switching cameras []
-//Hinting at other targets by pulling from net tables []
-//GUI to fix thresholding []
+//PRIORITY: Primary/secondary targets (fix issue of left and right picking up different pairs)
+//Time frame grabs []
+//Finish camera switching []
 //Confidence levels []
-//PRIORITY: account for targets obstructed by hatch[]
-//PRIORITY: pairing correct lefts/rights []
 
+//Displaying and streaming cameras
 std::string create_write_pipeline(int width, int height, int framerate,
 								  int bitrate, std::string ip, int port)
 {
@@ -47,6 +45,7 @@ void setVideoCaps(cv::VideoCapture &input)
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
 }
 
+//Calculate angles to target
 double point3fLength(cv::Point3f point)
 {
 	return sqrt((point.x) * (point.x) + (point.y) * (point.y) + (point.z) * (point.z));
@@ -85,6 +84,7 @@ double angleFromRawPixels(double tx)
 	return angleFromPixels(tx - (OPENCV_WIDTH / 2));
 }
 
+//Detect camera ID on Ubuntu
 int findFirstCamera()
 {
 	cv::Mat src;
@@ -172,6 +172,46 @@ bool isBetween(double min, double max, double min2, double max2)
 	return false;
 }
 
+/*void calculate(Goal goal)
+{
+	cv::Point leftCenter, rightCenter;
+	if (goal.partner != 0) {
+		if (goal.isLeft) {
+			leftCenter = goal.center;
+		}
+	}
+	
+	if (leftCenter.x != 0 && rightCenter.x != 0)
+	{
+		targetX = (rightCenter.x + leftCenter.x) / 2;
+		targetY = (rightCenter.y + leftCenter.y) / 2;
+		distance = (rightCenter.x - leftCenter.x) / 2;
+		//leftTargetAngle = (leftCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
+		//rightTargetAngle = (rightCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
+		leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
+		rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
+		targetsFound = 2;
+		hasLeft = true, hasRight = true;
+	}
+	else
+	{
+		if (rightCenter.x != 0)
+		{
+			targetX = rightCenter.x - distance;
+			rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
+			targetsFound = 1;
+			hasRight = true;
+		}
+		if (leftCenter.x != 0)
+		{
+			targetX = leftCenter.x + distance;
+			leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
+			targetsFound = 1;
+			hasLeft = true;
+		}
+	}
+}*/
+
 class Goal
 {
   public:
@@ -195,7 +235,8 @@ class Goal
 
 	bool isLeft;
 	bool isRight;
-	std::vector<cv::Point> partner;
+	//std::vector<cv::Point> partner;
+	int partner;
 
 	Goal(std::vector<cv::Point> Contour)
 	{
@@ -238,6 +279,8 @@ class Goal
 			isLeft = true;
 			isRight = false;
 		}
+
+		partner = -1;
 	}
 };
 
@@ -248,7 +291,9 @@ class TargetTracker
   public:
 	long frame;
 	int device;
+	bool verbose;
 	cv::Mat source;
+	cv::Mat hsv;
 	cv::Mat output;
 
 	double baseOffset = 0;
@@ -270,12 +315,13 @@ class TargetTracker
 	bool hasRight = false;
 	bool lowestAreaFilter = false;
 
-	TargetTracker(int Device, double BaseOffset, double Multiplier, cv::Scalar MinHSV, cv::Scalar MaxHSV)
+	TargetTracker(int Device, double BaseOffset, double Multiplier, bool Verbose, cv::Scalar MinHSV, cv::Scalar MaxHSV)
 		: input(Device)
 	{
 		device = Device;
 		baseOffset = BaseOffset;
 		multiplier = Multiplier;
+		verbose = Verbose;
 		minHSV = MinHSV;
 		maxHSV = MaxHSV;
 		setVideoCaps(input);
@@ -298,6 +344,8 @@ class TargetTracker
 
 	void analyze()
 	{
+		targetsFound = 0, centeredTargetX = 0, centeredTargetY = 0, targetAngle = 0, hasLeft = false, hasRight = false;
+
 		double t = (double)cv::getTickCount();
 		double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0;
 		double distance;
@@ -305,7 +353,6 @@ class TargetTracker
 		//cv::imshow("Source", source);
 		cv::normalize(source, source, 0, 255, cv::NORM_MINMAX);
 
-		cv::Mat hsv;
 		// TODO: don't need 3 images
 		output = source.clone();
 
@@ -321,18 +368,31 @@ class TargetTracker
 		std::vector<cv::Vec4i> hierarchy;
 
 		// TODO: don't need hierarchy
-		cv::findContours(hsv, contours, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
-		std::cout << "\nTotal contours: " << contours.size() << std::endl;
+		cv::findContours(hsv, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+		if (verbose)
+		{
+			std::cout << "\nTotal contours: " << contours.size() << std::endl;
+		}
 
 		//take min and max x-pos of two contours in question
 		//if any x-pos in between, passes
 		//if passes, convex hull around 2 and erase old two contours
+		for (size_t i = 0; i < contours.size(); i++)
+		{
+			cv::RotatedRect rRect1 = cv::minAreaRect(contours[i]);
+			cv::Point2f pts1[4];
+			rRect1.points(pts1);
+			if (pts1[0].y < (OPENCV_HEIGHT / 5))
+			{
+				contours.erase(contours.begin() + i);
+				i--;
+			}
+		}
+
 		int size = contours.size();
 		std::vector<int> rejects;
 		for (size_t i = 0; i < size && size < 20; i++)
 		{
-			//double cArea1 = cv::contourArea(contours[i]);
-			//if (cArea1 < 25) continue;
 			cv::RotatedRect rRect1 = cv::minAreaRect(contours[i]);
 			cv::Point2f pts1[4];
 			rRect1.points(pts1);
@@ -340,33 +400,75 @@ class TargetTracker
 			double max = pts1[2].x;
 			for (size_t j = i + 1; j < size; j++)
 			{
-				//double cArea2 = cv::contourArea(contours[j]);
-				//if (cArea2 < 25) continue;
 				cv::RotatedRect rRect2 = cv::minAreaRect(contours[j]);
 				cv::Point2f pts2[4];
 				rRect2.points(pts2);
 				double min2 = pts2[0].x;
 				double max2 = pts2[2].x;
+				if (!isBetween(min, max, min2, max2))
+					continue;
 
-				if (isBetween(min, max, min2, max2))
-				{
-					//convex hull around 2 contours
-					//push back convex hull
-					//erase position of two separate contours
-					std::cout << "in between horiz: " << isBetween(min, max, min2, max2) << std::endl;
-					std::vector<cv::Point> points, hull;
+				//convex hull around 2 contours
+				//push back convex hull
+				//erase position of two separate contours
+				std::cout << "in between horiz: " << isBetween(min, max, min2, max2) << std::endl;
+				std::vector<cv::Point> points, hull;
 
-					points.insert(points.end(), contours[i].begin(), contours[i].end());
-					points.insert(points.end(), contours[j].begin(), contours[j].end());
-					cv::convexHull(cv::Mat(points), hull);
+				points.insert(points.end(), contours[i].begin(), contours[i].end());
+				points.insert(points.end(), contours[j].begin(), contours[j].end());
+				cv::convexHull(cv::Mat(points), hull);
 
-					contours.push_back(hull);
+				contours.push_back(hull);
 
-					if (std::find(rejects.begin(), rejects.end(), i) == rejects.end())
-						rejects.push_back(i);
-					if (std::find(rejects.begin(), rejects.end(), j) == rejects.end())
-						rejects.push_back(j);
-				}
+				if (std::find(rejects.begin(), rejects.end(), i) == rejects.end())
+					rejects.push_back(i);
+				if (std::find(rejects.begin(), rejects.end(), j) == rejects.end())
+					rejects.push_back(j);
+			}
+		}
+
+		// must sort in order to ensure that we remove from the back.
+		std::sort(rejects.begin(), rejects.end());
+		for (size_t i = rejects.size(); i > 0; i--)
+		{
+			contours.erase(contours.begin() + rejects[i - 1]);
+		}
+
+		size = contours.size();
+		rejects.clear();
+		for (size_t i = 0; i < size && size < 20; i++)
+		{
+			cv::RotatedRect rRect1 = cv::minAreaRect(contours[i]);
+			cv::Point2f pts1[4];
+			rRect1.points(pts1);
+			double min = pts1[0].x;
+			double max = pts1[2].x;
+			for (size_t j = i + 1; j < size; j++)
+			{
+				cv::RotatedRect rRect2 = cv::minAreaRect(contours[j]);
+				cv::Point2f pts2[4];
+				rRect2.points(pts2);
+				double min2 = pts2[0].x;
+				double max2 = pts2[2].x;
+				if (!isBetween(min, max, min2, max2))
+					continue;
+
+				//convex hull around 2 contours
+				//push back convex hull
+				//erase position of two separate contours
+				std::cout << "in between horiz: " << isBetween(min, max, min2, max2) << std::endl;
+				std::vector<cv::Point> points, hull;
+
+				points.insert(points.end(), contours[i].begin(), contours[i].end());
+				points.insert(points.end(), contours[j].begin(), contours[j].end());
+				cv::convexHull(cv::Mat(points), hull);
+
+				contours.push_back(hull);
+
+				if (std::find(rejects.begin(), rejects.end(), i) == rejects.end())
+					rejects.push_back(i);
+				if (std::find(rejects.begin(), rejects.end(), j) == rejects.end())
+					rejects.push_back(j);
 			}
 		}
 		for (int i = 0; i < contours.size(); i++)
@@ -390,38 +492,71 @@ class TargetTracker
 
 			//Checks if area is too small/aspect ratio is not close to 2/5.5
 			if (goal.areaRatio < MIN_AREA_RATIO)
+			{
+				if (verbose)
+				{
+					std::cout << "Failed min area ratio" << std::endl;
+				}
 				continue;
+			}
 			//std::cout << "Area ratio: " << areaRatio << std::endl;
 			if (goal.cArea < MIN_AREA)
+			{
+				if (verbose)
+				{
+					std::cout << "Failed min area" << std::endl;
+				}
 				continue;
+			}
 			//std::cout << "Area: " << cArea << std::endl;
 			if (goal.rect.width > goal.rect.height)
+			{
+				if (verbose)
+				{
+					std::cout << "Failed vertical check" << std::endl;
+				}
 				continue;
+			}
 			//std::cout << "Width: " << rect.width << " Height: " << rect.height << std::endl;
-			if (goal.offset < MIN_OFFSET || goal.offset > MAX_OFFSET)
+			/*if (goal.offset < MIN_OFFSET || goal.offset > MAX_OFFSET)
+			{
+				if (verbose) {
+					std::cout << "Failed correct angle" << std::endl;
+				}
 				continue;
+			}*/
 			//std::cout << "Offset: " << offset << std::endl;
-			//if (cRatio < 0.2 || cRatio > 0.6) continue;
 
 			possible.push_back(goal);
 		}
 
-		std::cout << "Total possibles: " << possible.size() << std::endl;
+		if (verbose)
+		{
+			std::cout << "Total possibles: " << possible.size() << std::endl;
+		}
 		t2 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
 		double bestDistBetween = 10000;
-		if (possible.size() > 1)
+		if (possible.size() > 0)
 		{
 			//match left and right pairs
-			int size = possible.size();
-			for (size_t i = 0; i < size && size < 20; i++)
+			size = possible.size();
+			for (size_t i = 0; i < size; i++)
 			{
 				double min = possible[i].pts[2].y;
 				double max = possible[i].pts[0].y;
+				if (possible[i].partner == -1)
+				{
+					possible[i].partner = i;
+				}
 				for (size_t j = i + 1; j < size; j++)
 				{
 					double min2 = possible[j].pts[2].y;
 					double max2 = possible[j].pts[0].y;
+					if (possible[j].partner == -1)
+					{
+						possible[j].partner = j;
+					}
 					if (possible[i].isLeft == possible[j].isLeft)
 						continue;
 					if (!isBetween(min, max, min2, max2))
@@ -429,7 +564,8 @@ class TargetTracker
 					double currentDistBetween = fabs(possible[i].center.x - possible[j].center.x);
 					if (currentDistBetween > bestDistBetween)
 						continue;
-
+					if (currentDistBetween > (OPENCV_WIDTH/1.5))
+						continue;
 					//if (isBetween(min, max, min2, max2) && possible[i].isLeft != possible[j].isLeft)
 					//{
 					//convex hull around 2 contours
@@ -445,8 +581,8 @@ class TargetTracker
 
 					//possible.push_back(mergedGoal(hull));
 					bestDistBetween = currentDistBetween;
-					possible[i].partner = possible[j].contour;
-					possible[j].partner = possible[i].contour;
+					possible[i].partner = j;
+					possible[j].partner = i;
 					cv::line(output, possible[i].center, possible[j].center, GREEN, 2);
 					//}
 				}
@@ -461,8 +597,11 @@ class TargetTracker
 			int firstBest = 0;
 			int secondBest = 0;
 
+			//Goal* bestGoal;
+			//Goal* secondBestGoal;
+
 			//Draws mininum area rects. and centers for possible goals
-			for (size_t i = 0; i < possible.size(); i++)
+			/*for (size_t i = 0; i < possible.size(); i++)
 			{
 				//std::cout << "Lowest area filter on: " << lowestAreaFilter << std::endl;
 				if (lowestAreaFilter) //just an example case here: if hinting value is put on nettables by robot, pick lowest areas from possibles
@@ -501,6 +640,19 @@ class TargetTracker
 						}
 					}
 				}
+			}*/
+
+			//wip code for largest target + its partner
+			for (size_t i = 0; i < possible.size(); i++)
+			{
+				if (possible[i].cArea >= mostArea)
+				{
+					firstBest = i;
+					//bestGoal = &possible[firstBest];
+					mostArea = possible[i].cArea;
+					secondBest = possible[i].partner;
+					//secondBestGoal = &possible[secondBest];
+				}
 			}
 
 			t3 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
@@ -510,6 +662,15 @@ class TargetTracker
 			{
 				best.push_back(possible[secondBest]);
 			}
+			/*best.push_back(*bestGoal);
+			if (firstBest != secondBest)
+			{
+				best.push_back(*secondBestGoal);
+				best[0].partner = 1;
+				best[1].partner = 0;
+			} else {
+				best[0].partner = 0;
+			}*/
 
 			//t4 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
@@ -519,6 +680,10 @@ class TargetTracker
 			double height[2];
 
 			cv::Point2f rightCenter, leftCenter;
+			if (verbose)
+			{
+				std::cout << "Total bests: " << best.size() << std::endl;
+			}
 			for (size_t i = 0; i < best.size(); i++)
 			{
 				rrect[i] = best[i].rRect;
@@ -631,11 +796,6 @@ class TargetTracker
 		targetAngle = angleFromPixels(centeredTargetX) + baseOffset;
 		//std::cout << "base offset: " << baseOffset << std::endl;
 
-		if (best.size() == 0)
-		{
-			targetsFound = 0, centeredTargetX = 0, centeredTargetY = 0, targetAngle = 0, hasLeft = false, hasRight = false;
-		}
-
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		//std::cout << t * 1000 << "ms" << std::endl;
 		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
@@ -659,8 +819,10 @@ int main(int argc, char *argv[])
 	double rightCameraAngle = 9.5; //deg
 	double cameraSeparation = 22;  //inches
 	double lastGoodDistance = -1;
-	cv::Scalar minHueSatVal(55, 80, 35);
-	cv::Scalar maxHueSatVal(120, 255, 245);
+	//cv::Scalar minHueSatVal(55, 80, 35);
+	//cv::Scalar maxHueSatVal(120, 255, 245);
+	cv::Scalar minHueSatVal(65, 0, 0);
+	cv::Scalar maxHueSatVal(90, 254, 254);
 
 	std::vector<std::string> args(argv, argv + argc);
 	for (size_t i = 1; i < args.size(); ++i)
@@ -701,7 +863,7 @@ int main(int argc, char *argv[])
 		{
 			robot = true;
 			debug = true;
-			verbose = false;
+			verbose = true;
 			showOutputWindow = true;
 			ntIP = "10.33.14.2";
 			streamIP = "10.33.14.15";
@@ -775,11 +937,11 @@ int main(int argc, char *argv[])
 		}
 		if (args[i] == "minhsv")
 		{
-			minHueSatVal = cv::Scalar(stoi(args[i+1]),stoi(args[i+2]),stoi(args[1+3]));
+			minHueSatVal = cv::Scalar(stoi(args[i + 1]), stoi(args[i + 2]), stoi(args[i + 3]));
 		}
 		if (args[i] == "maxhsv")
 		{
-			maxHueSatVal = cv::Scalar(stoi(args[i+1]),stoi(args[i+2]),stoi(args[1+3]));
+			maxHueSatVal = cv::Scalar(stoi(args[i + 1]), stoi(args[i + 2]), stoi(args[i + 3]));
 		}
 	}
 
@@ -802,6 +964,7 @@ int main(int argc, char *argv[])
 	std::cout << "LeftCameraID: " << leftCameraID << "  RightCameraID: " << rightCameraID << "  FrontCameraID: " << frontCameraID << "  BackCameraID: " << backCameraID << std::endl;
 	std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl;
 	std::cout << "LeftCameraAngle: " << leftCameraAngle << " RightCameraAngle: " << rightCameraAngle << " CameraSeparation: " << cameraSeparation << std::endl;
+	std::cout << "MinHSV: " << minHueSatVal << " MaxHSV: " << maxHueSatVal << std::endl;
 	//}
 
 	CvVideoWriter_GStreamer mywriter;
@@ -816,8 +979,8 @@ int main(int argc, char *argv[])
 
 	long long increment = 0;
 
-	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER, minHueSatVal, maxHueSatVal);
-	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER, minHueSatVal, maxHueSatVal);
+	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER, verbose, minHueSatVal, maxHueSatVal);
+	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER, verbose, minHueSatVal, maxHueSatVal);
 	cv::VideoCapture frontCamera(frontCameraID);
 	//cv::VideoCapture backCamera(backCameraID);
 	cv::Mat frontImg, backImg;
