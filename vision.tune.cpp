@@ -39,12 +39,24 @@ void flash_bad_settings(int device)
 	system(setting_script);
 }
 
-void setVideoCaps(cv::VideoCapture &input, double exposure)
+void setVideoCaps(
+	cv::VideoCapture &input, 
+	double exposure,
+	double brightness,
+	double contrast,
+	double saturation,
+	double gain,
+	double hue
+	)
 {
 	input.set(CV_CAP_PROP_FRAME_WIDTH, OPENCV_WIDTH);
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
 	input.set(CAP_PROP_EXPOSURE, exposure);
-	//input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
+	input.set(CAP_PROP_BRIGHTNESS, brightness);
+	input.set(CAP_PROP_CONTRAST, contrast);
+	input.set(CAP_PROP_SATURATION, saturation);
+	input.set(CAP_PROP_GAIN, gain);
+	input.set(CAP_PROP_HUE, hue);
 	 
 }
 
@@ -265,6 +277,12 @@ class TargetTracker
 	cv::Scalar minHSV{55, 80, 35};
 	cv::Scalar maxHSV{120, 255, 255};
 	double exposure = 20;
+	double brightness = 255;
+	double contrast = 255;
+	double saturation =255;
+	double gain = 0;
+	double hue = 0;
+
 
 	double targetX = 0;
 	double targetY = 0;
