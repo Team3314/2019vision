@@ -51,12 +51,12 @@ void setVideoCaps(
 {
 	input.set(CV_CAP_PROP_FRAME_WIDTH, OPENCV_WIDTH);
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
-	input.set(CAP_PROP_EXPOSURE, exposure);
-	input.set(CAP_PROP_BRIGHTNESS, brightness);
-	input.set(CAP_PROP_CONTRAST, contrast);
-	input.set(CAP_PROP_SATURATION, saturation);
-	input.set(CAP_PROP_GAIN, gain);
-	input.set(CAP_PROP_HUE, hue);
+	input.set(CV_CAP_PROP_EXPOSURE, exposure);
+	input.set(CV_CAP_PROP_BRIGHTNESS, brightness);
+	input.set(CV_CAP_PROP_CONTRAST, contrast);
+	input.set(CV_CAP_PROP_SATURATION, saturation);
+	input.set(CV_CAP_PROP_GAIN, gain);
+	input.set(CV_CAP_PROP_HUE, hue);
 	 
 }
 
@@ -276,12 +276,6 @@ class TargetTracker
 	double multiplier = 0;
 	cv::Scalar minHSV{55, 80, 35};
 	cv::Scalar maxHSV{120, 255, 255};
-	double exposure = 20;
-	double brightness = 255;
-	double contrast = 255;
-	double saturation =255;
-	double gain = 0;
-	double hue = 0;
 
 
 	double targetX = 0;
@@ -301,43 +295,72 @@ class TargetTracker
 	TargetTracker(int Device, double BaseOffset, double Multiplier, bool Verbose) //, cv::Scalar MinHSV, cv::Scalar MaxHSV)
 		: input(Device)
 	{
+			double exposure = 20;
+			double brightness = 255;
+			double contrast = 255;
+			double saturation =255;
+			double gain = 0;
+			double hue = 0;
+
+
 		device = Device;
 		baseOffset = BaseOffset;
 		multiplier = Multiplier;
 		verbose = Verbose;
-		setVideoCaps(input, exposure);
+		setVideoCaps(input, exposure,
+			brightness,
+			contrast,
+			saturation,
+			gain,
+			hue
+		);
 	}
 
 	void capture()
 	{
 		frame++;
-		if (frame == 50)
-		{
-			flash_bad_settings(device);
-		}
-		else if (frame == 0 || frame == 100)
-		{
-			flash_good_settings(device);
-		}
+		// if (frame == 50)
+		// {
+		// 	flash_bad_settings(device);
+		// }
+		// else if (frame == 0 || frame == 100)
+		// {
+		// 	flash_good_settings(device);
+		// }
 
-		setVideoCaps(input, exposure);
+		double exposure = 20;
+		double brightness = 255;
+		double contrast = 255;
+		double saturation =255;
+		double gain = 0;
+		double hue = 0;
+		cv::Scalar minHSV{55, 80, 35};
+		cv::Scalar maxHSV{120, 255, 255};
+
+		minHSV = cv::Scalar(
+			myNetTable->GetNumber("minH", minHSV.val[0]), 
+			myNetTable->GetNumber("minS", minHSV.val[1], 
+			myNetTable->GetNumber("minV", minHSV.val[2])
+			);
+		maxHSV = cv::Scalar(
+			myNetTable->GetNumber("maxH", maxHSV.val[0]), 
+			myNetTable->GetNumber("maxS", maxHSV.val[1]), 
+			myNetTable->GetNumber("maxV", maxHSV.val[2])
+			);
+
+		exposure = 	myNetTable->GetNumber("exposure", exposure);
+		setVideoCaps(input, exposure,
+			brightness,
+			contrast,
+			saturation,
+			gain,
+			hue
+		);
 		input.read(source);
 	}
 
 	void analyze()
 	{
-		minHSV = cv::Scalar(
-			myNetTable->GetNumber("minH", minHueSatVal.val[0]), 
-			myNetTable->GetNumber("minS", minHueSatVal.val[1], 
-			myNetTable->GetNumber("minV", minHueSatVal.val[2])
-			);
-		maxHSV = cv::Scalar(
-			myNetTable->GetNumber("maxH", maxHueSatVal.val[0]), 
-			myNetTable->GetNumber("maxS", maxHueSatVal.val[1]), 
-			myNetTable->GetNumber("maxV", maxHueSatVal.val[2])
-			);
-
-		exposure = 	myNetTable->GetNumber("exposure", exposure);
 
 		double minAreaRatio = myNetTable->GetNumber("minAreaRatio", MIN_AREA_RATIO);
 		double minArea = myNetTable->GetNumber("minArea", MIN_AREA);
@@ -713,6 +736,14 @@ int main(int argc, char *argv[])
 	//cv::Scalar maxHueSatVal(120, 255, 245);
 	cv::Scalar minHueSatVal(65, 0, 0);
 	cv::Scalar maxHueSatVal(90, 254, 254);
+
+	double exposure = 20;
+	double brightness = 255;
+	double contrast = 255;
+	double saturation =255;
+	double gain = 0;
+	double hue = 0;
+
 
 	std::vector<std::string> args(argv, argv + argc);
 	for (size_t i = 1; i < args.size(); ++i)
