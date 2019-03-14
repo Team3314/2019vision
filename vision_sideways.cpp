@@ -1101,16 +1101,18 @@ int main(int argc, char *argv[])
 
 			if (leftTracker.targetsFound == 2)
 			{
-				double pixel = leftTracker.bottomTargetAngle-320;
+				double pixel = leftTracker.targetY-320; // pixels
 				double camAngle = -18*(CV_PI/180.0); // radians
 				double camView = 67*(CV_PI/180.0); // radians
-				double fpix = 320/tan(camView/2); 
-				double fdot = fpix*fpix;
-				double normpix = sqrt(fpix*fpix+pixel*pixel);
+				double fpix = 320/tan(camView/2); // pixels
+				double fdot = fpix*fpix; // pixels^2
+				double normpix = sqrt(fpix*fpix+pixel*pixel); // pixels
 				double anglepix = acos(fdot/(fpix*normpix)); // radians without sign
-				if(pixel<0) anglepix *= -1;
-				distance = (31.40-13) / tan(anglepix+camAngle);
-				distanceHigh = (40-13) / tan(anglepix+camAngle);
+				if(pixel<0) anglepix *= -1; // radians with sign
+				distance = (31.40-13) / tan(anglepix+camAngle); // inches
+				distanceHigh = (40-13) / tan(anglepix+camAngle); // inches
+				std::cout << "xxxtargetY" << leftTracker.targetY << std::endl;
+				std::cout << "xxxpixel" << pixel << std::endl;
 				std::cout << "xxxdist" << distance << std::endl;
 				std::cout << "xxxdistHigh" << distanceHigh << std::endl;
 				//distance = (31.40-13) / tan((CV_PI/180) * (leftTracker.bottomTargetAngle)); // + leftTracker.baseOffset));
