@@ -276,6 +276,7 @@ class TargetTracker
 		verbose = Verbose;
 		minHSV = MinHSV;
 		maxHSV = MaxHSV;
+
 		setVideoCaps(input);
 		/*xsetVideoCaps(
 			exposure,
@@ -316,8 +317,12 @@ class TargetTracker
 			flash_good_settings(device);
 		}
 
+		//double ta = (double)cv::getTickCount();
 		input.read(source);
-		cv::transpose(source, source);
+		//double tb = (double)cv::getTickCount();
+		//std::cout << "\nreadtime:" << (tb-ta) / cv::getTickFrequency() << std::endl;
+		
+		cv::transpose(source, source);		double t = (double)cv::getTickCount();
 		cv::flip(source, source, 0); //0 for production robot
 	}
 
