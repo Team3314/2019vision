@@ -1,6 +1,4 @@
-/3314/src/build/CMakeFiles/rebuild_cache.dir
-/3314/src/build/CMakeFiles/viz.dir
 /3314/src/build/CMakeFiles/edit_cache.dir
-/3314/src/build/CMakeFiles/viz1.dir
-/3314/src/build/CMakeFiles/cal.dir
-/3314/src/build/CMakeFiles/camtest.dir
+/3314/src/build/CMakeFiles/rebuild_cache.dir
+/3314/src/build/CMakeFiles/vizsingle.dir
+/3314/src/build/CMakeFiles/vizside.dir

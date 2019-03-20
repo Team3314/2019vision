@@ -1,10 +1,9 @@
 #include "vision.hpp"
 
 //TODO
+//super priority: getting these new sideways cameras good
 //PRIORITY: Primary/secondary targets (fix issue of left and right picking up different pairs)
-//Time frame grabs []
-//Finish camera switching []
-//Confidence levels []
+//Logging
 
 //Displaying and streaming cameras
 std::string create_write_pipeline(int width, int height, int framerate,
@@ -321,6 +320,7 @@ class TargetTracker
 	double targetAngle = 0;
 	double leftTargetAngle = 0;
 	double rightTargetAngle = 0;
+	double bottomTargetAngle = 0;
 
 	int targetsFound = 0;
 	bool hasLeft = false;
@@ -330,6 +330,13 @@ class TargetTracker
 	TargetTracker(int Device, double BaseOffset, double Multiplier, bool Verbose, cv::Scalar MinHSV, cv::Scalar MaxHSV)
 		: input(Device)
 	{
+			double exposure = 20;
+			double brightness = 100;
+			double contrast = 100;
+			double saturation =100;
+			double gain = 0;
+			double hue = 0;
+
 		device = Device;
 		baseOffset = BaseOffset;
 		multiplier = Multiplier;
@@ -337,7 +344,36 @@ class TargetTracker
 		minHSV = MinHSV;
 		maxHSV = MaxHSV;
 		setVideoCaps(input);
+		//xsetVideoCaps(
+		//	exposure,
+		//	brightness,
+		//	contrast,
+		//	saturation,
+		//	gain,
+		//	hue
+		//);
 	}
+
+	void xsetVideoCaps(
+		double exposure,
+		double brightness,
+		double contrast,
+		double saturation,
+		double gain,
+		double hue
+		)
+	{
+		input.set(CV_CAP_PROP_FRAME_WIDTH, OPENCV_WIDTH);
+		input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
+		input.set(CV_CAP_PROP_EXPOSURE, exposure);
+		input.set(CV_CAP_PROP_BRIGHTNESS, brightness);
+		input.set(CV_CAP_PROP_CONTRAST, contrast);
+		input.set(CV_CAP_PROP_SATURATION, saturation);
+		input.set(CV_CAP_PROP_GAIN, gain);
+		input.set(CV_CAP_PROP_HUE, hue);
+		
+	}
+
 
 	void capture()
 	{
@@ -354,7 +390,7 @@ class TargetTracker
 		input.read(source);
 		//cv::rotate(source, source, cv::ROTATE_90_CLOCKWISE);
 		cv::transpose(source, source);
-		cv::flip(source, source, 1);
+		cv::flip(source, source, 0); // for production robot
 	}
 
 	void analyze()
@@ -582,6 +618,9 @@ class TargetTracker
 						continue;
 					if (possible[i].isRight && possible[j].isLeft && possible[i].center.x < possible[j].center.x)
 						continue;
+					//if (isBetween(possible[i].pts[0].x, possible[i].pts[2].x, possible[j].pts[0].x, possible[j].pts[2].x))
+					//if ((possible[i].rect & possible[j].rect).area() > 0)
+					//	continue;
 					if (!isBetween(min, max, min2, max2))
 						continue;
 					double currentDistBetween = fabs(possible[i].center.x - possible[j].center.x);
@@ -668,7 +707,7 @@ class TargetTracker
 			}*/
 
 			//wip code for largest target + its partner
-			for (size_t i = 0; i < possible.size(); i++)
+			/*for (size_t i = 0; i < possible.size(); i++)
 			{
 				if (possible[i].cArea >= mostArea)
 				{
@@ -678,19 +717,19 @@ class TargetTracker
 					secondBest = possible[i].partner;
 					//secondBestGoal = &possible[secondBest];
 				}
-			}
+			}*/
 
-			/*for (size_t i = 0; i < possible.size(); i++)
+			for (size_t i = 0; i < possible.size(); i++)
 			{
-				if (fabs(possible[i].center.x - (OPENCV_WIDTH/2)) < closest)
+				if (fabs(possible[i].center.x - 180) < closest)
 				{
 					firstBest = i;
 					//bestGoal = &possible[firstBest];
-					closest = fabs(possible[i].center.x - (OPENCV_WIDTH/2));
+					closest = fabs(possible[i].center.x - 180);
 					secondBest = possible[i].partner;
 					//secondBestGoal = &possible[secondBest];
 				}
-			}*/
+			}
 
 			t3 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 
@@ -796,12 +835,14 @@ class TargetTracker
 			if (leftCenter.x != 0 && rightCenter.x != 0)
 			{
 				targetX = (rightCenter.x + leftCenter.x) / 2;
-				targetY = (rightCenter.y + leftCenter.y) / 2;
+				//targetY = (rightCenter.y + leftCenter.y) / 2;
+				targetY = OPENCV_WIDTH - ((best[0].pts[2].y + best[1].pts[2].y) / 2);
 				distance = (rightCenter.x - leftCenter.x) / 2;
 				//leftTargetAngle = (leftCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
 				//rightTargetAngle = (rightCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
 				leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
 				rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
+				bottomTargetAngle = angleFromRawPixels(targetY);
 				targetsFound = 2;
 				hasLeft = true, hasRight = true;
 			}
@@ -824,7 +865,8 @@ class TargetTracker
 			}
 		}
 
-		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_HEIGHT), cv::Scalar(0, 0, 255), 2);
+		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, 640), cv::Scalar(0, 0, 255), 2);
+		cv::circle(output, cv::Point(360/2, 640/2), 10, GREEN, 5);
 
 		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
 		//std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
@@ -1005,19 +1047,19 @@ int main(int argc, char *argv[])
 	//}
 
 	CvVideoWriter_GStreamer mywriter;
-	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
+	/*std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
 													   BITRATE, streamIP, PORT);
 	 if (verbose)
 	 {
 	 	printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
 	 }
 	mywriter.open(write_pipeline.c_str(),
-				  0, FRAMERATE, cv::Size(STREAM_WIDTH, STREAM_HEIGHT), true);
+				  0, FRAMERATE, cv::Size(STREAM_WIDTH, STREAM_HEIGHT), true);*/
 
 	long long increment = 0;
 
 	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER, verbose, minHueSatVal, maxHueSatVal);
-	TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER, verbose, minHueSatVal, maxHueSatVal);
+	//TargetTracker rightTracker(rightCameraID, rightCameraAngle, RIGHT_MULTIPLIER, verbose, minHueSatVal, maxHueSatVal);
 	cv::VideoCapture frontCamera(frontCameraID);
 	//cv::VideoCapture backCamera(backCameraID);
 	cv::Mat frontImg, backImg;
@@ -1036,33 +1078,39 @@ int main(int argc, char *argv[])
 	for (;;)
 	{
 		double distance = -1;
+		double distanceHigh = -1;
 		double botDistance = -1;
 		double offset = -1;
 		double angleToTarget = -1;
 		hintingExample = myNetTable->GetBoolean("Lowest area test", false);
 		leftTracker.lowestAreaFilter = hintingExample;
-		rightTracker.lowestAreaFilter = hintingExample;
+		//rightTracker.lowestAreaFilter = hintingExample;
 
 		leftTracker.capture();
-		rightTracker.capture();
+		//rightTracker.capture();
 		frontCamera.read(frontImg);
+		cv::transpose(frontImg, frontImg);
+		cv::flip(frontImg, frontImg, 1); // for production robot
 		//backCamera.read(backImg);
-		if (leftTracker.frame > 100 && rightTracker.frame > 100)
+		if (leftTracker.frame > 100)// && rightTracker.frame > 100)
 		{
 			leftTracker.analyze();
-			rightTracker.analyze();
+			//rightTracker.analyze();
 
 			if (verbose)
 			{
 				std::cout << "\nIncrement: " << increment << std::endl;
 				std::cout << "LEFT" << std::endl;
 				std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
+				std::cout << "fixed target y: " << leftTracker.targetY << std::endl;
+				std::cout << "bottom target angle: " << leftTracker.bottomTargetAngle << std::endl;
 				std::cout << "Target angle: " << leftTracker.targetAngle << std::endl;
-				std::cout << "RIGHT" << std::endl;
-				std::cout << "centeredTargetX: " << rightTracker.centeredTargetX << std::endl;
-				std::cout << "Target angle: " << rightTracker.targetAngle << std::endl;
+				//std::cout << "RIGHT" << std::endl;
+				//std::cout << "centeredTargetX: " << rightTracker.centeredTargetX << std::endl;
+				//std::cout << "Target angle: " << rightTracker.targetAngle << std::endl;
 			}
 
+			/*
 			if (leftTracker.targetsFound == 2 && rightTracker.targetsFound == 2)
 			{
 				double tanLeft = tan((CV_PI / 180) * leftTracker.targetAngle);
@@ -1080,7 +1128,7 @@ int main(int argc, char *argv[])
 				/*angleToTarget = ((180 / CV_PI) * atan((tanLeft * distance - cameraSeparation / 2) / distance) +
 							 (180 / CV_PI) * atan((tanRight * distance + cameraSeparation / 2) / distance)) /
 							2;*/
-				angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
+				/*angleToTarget = leftTracker.targetAngle + rightTracker.targetAngle;
 			}
 			else if (leftTracker.targetsFound >= 1 && rightTracker.targetsFound >= 1 && leftTracker.hasLeft && rightTracker.hasRight)
 			{
@@ -1089,7 +1137,68 @@ int main(int argc, char *argv[])
 				angleToTarget = leftTracker.leftTargetAngle + rightTracker.rightTargetAngle;
 				distance = ((cameraSeparation - 11) / (tanLeft + tanRight));
 				botDistance = distance - 5;
+			}*/
+
+			if (leftTracker.targetsFound == 2)
+			{
+				bool production = true;
+				double camAngle; // = 18*(CV_PI/180.0); // radians
+				double camView; // = 67*(CV_PI/180.0); // radians
+				double camHeight; // = 13.0; // inches
+				double camOffset; // = 1.25; // inches
+				double camHorizAngle; // = 5;
+				
+				if (production) 
+				{
+					camAngle = 18*(CV_PI/180.0); // radians
+					camView = 67*(CV_PI/180.0); // radians
+					camHeight = 13.5; // inches
+					camOffset = 1.5; // inches
+					camHorizAngle = 3; // degrees
+				}
+				else 
+				{
+					camAngle = 18*(CV_PI/180.0); // radians
+					camView = 67*(CV_PI/180.0); // radians
+					camHeight = 13; // inches
+					camOffset = 1.25; // inches
+					camHorizAngle = 3; // degrees
+				}
+
+
+				double pixel = leftTracker.targetY-320; // pixels
+				double fpix = 320/tan(camView/2); // pixels
+				double fdot = fpix*fpix; // pixels^2
+				double normpix = sqrt(fpix*fpix+pixel*pixel); // pixels
+				double anglepix = acos(fdot/(fpix*normpix)); // radians without sign
+				if(pixel<0) anglepix *= -1; // radians with sign
+				distance = (31.40-camHeight) / tan(anglepix+camAngle); // inches
+				distanceHigh = (40-camHeight) / tan(anglepix+camAngle); // inches
+				
+				double pixel_x = leftTracker.targetX-180;
+				double camView_x = 43*(CV_PI/180.0);
+				double fpix_x = 180/tan(camView_x/2);
+				double fdot_x = fpix_x*fpix_x;
+				double normpix_x = sqrt(fpix_x*fpix_x+pixel_x*pixel_x);
+				double anglepix_x = acos(fdot_x/(fpix_x*normpix_x));
+				if(pixel_x<0) anglepix_x *= -1;
+				//double correction = atan(camOffset/distance);
+				angleToTarget = (anglepix_x)*(180/CV_PI)-camHorizAngle;// TODO: TOTAL HACK ALERT!!!! 5 deg bias
+				
+				std::cout << "xxxtargetY" << leftTracker.targetY << std::endl;
+				// std::cout << "xxxpixel" << pixel << std::endl;
+				//std::cout << "xxxanglepix" << anglepix_x*(180/CV_PI) << std::endl;
+				// std::cout << "xxxcamangle" << camAngle << std::endl;
+				// std::cout << "xxxtan" << tan(anglepix+camAngle) << std::endl;
+				//std::cout << "xxxcorrection" << correction*(180/CV_PI) << std::endl;
+				//std::cout << "xxxangletotarget" << angleToTarget << std::endl;
+				//distance = (31.40-13) / tan((CV_PI/180) * (leftTracker.bottomTargetAngle)); // + leftTracker.baseOffset));
+				//distance = 
+				
+				lastGoodDistance = distance;
+				botDistance = distance - camHorizAngle;
 			}
+
 			/*else if (leftTracker.targetsFound == 2)
 		{
 			if (lastGoodDistance > 36)
@@ -1122,15 +1231,18 @@ int main(int argc, char *argv[])
 			myNetTable->PutBoolean("Left hasRight", leftTracker.hasRight);
 			myNetTable->PutNumber("Left Angle to Target", leftTracker.targetAngle);
 
+			/*
 			myNetTable->PutNumber("Right targetX", rightTracker.centeredTargetX);
 			myNetTable->PutNumber("Right targetY", rightTracker.centeredTargetY);
 			myNetTable->PutNumber("Right targetsFound", rightTracker.targetsFound);
 			myNetTable->PutBoolean("Right hasLeft", rightTracker.hasLeft);
 			myNetTable->PutBoolean("Right hasRight", rightTracker.hasRight);
 			myNetTable->PutNumber("Right Angle to Target", rightTracker.targetAngle);
+			*/
 
 			myNetTable->PutNumber("Distance", distance);
-			myNetTable->PutNumber("Offset", offset);
+			myNetTable->PutNumber("DistanceHigh", distanceHigh);
+			//myNetTable->PutNumber("Offset", offset);
 			myNetTable->PutNumber("Angle To Target", angleToTarget);
 
 			if (verbose)
@@ -1144,12 +1256,12 @@ int main(int argc, char *argv[])
 			myNetTable->PutNumber("increment", increment);
 			myNetTable->Flush();
 
-			cv::Mat combine(240, 480, CV_8UC3);
+			cv::Mat combine(360, 320, CV_8UC3);
 			int primary = myNetTable->GetNumber("Primary img", -1);
 
-			cv::Rect ROI1(0, 0, 320, 240);
-			cv::Rect ROI2(320, 0, 160, 120);
-			cv::Rect ROI3(320, 120, 160, 120);
+			cv::Rect ROI1(0, 0, 160, 360);
+			cv::Rect ROI2(160, 0, 160, 360);
+			//cv::Rect ROI3(320, 120, 160, 120);
 			//cv::Rect ROI4;
 			cv::Mat temp;
 			switch (primary)
@@ -1199,8 +1311,8 @@ int main(int argc, char *argv[])
 				temp.copyTo(combine(ROI1));
 				cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
 				temp.copyTo(combine(ROI2));
-				cv::resize(rightTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
-				temp.copyTo(combine(ROI3));
+				//cv::resize(leftTracker.output, temp, cv::Size(ROI3.width, ROI3.height));
+				//temp.copyTo(combine(ROI3));
 				//cv::resize(backImg, temp, cv::Size(ROI4.width, ROI4.height));
 				//temp.copyTo(combine(ROI4));
 			}
@@ -1211,8 +1323,9 @@ int main(int argc, char *argv[])
 			{
 				if (debug)
 				{
-					cv::imshow("Left Output", leftTracker.output);
-					cv::imshow("Right Output", rightTracker.output);
+					cv::imshow("combine", combine);
+					//cv::imshow("Left Output", leftTracker.output);
+					//cv::imshow("Right Output", frontImg);
 				}
 				else
 				{
@@ -1221,11 +1334,25 @@ int main(int argc, char *argv[])
 					//cv::imshow("back", backImg);
 				}
 			}
-			if (increment % 3)
-			{
+			//if (increment % 3)
+			//{
 				IplImage outImage = (IplImage)combine;
-				mywriter.writeFrame(&outImage); //write output image over network
-			}
+				//mywriter.writeFrame(&outImage); //write output image over network
+				bool enabled = myNetTable->GetBoolean("Enabled", false);
+				int matchNumber = myNetTable->GetNumber("Match Number", 0);
+				int timeRemaining = myNetTable->GetNumber("Time Remaining", 0);
+				if (((increment % 10)==0) && enabled && matchNumber != 0) {
+				std::vector<int> compression_params;
+				compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
+				compression_params.push_back(95);
+				char file_name[100];
+				char src_file_name[100];
+				sprintf(file_name, "/3314/images/match%d_%d_%d.jpg", matchNumber, timeRemaining, increment); //from nettables, grab match # and time remaining
+				cv::imwrite(file_name, combine, compression_params);
+				sprintf(src_file_name, "/3314/images/SRC_match%d_%d_%d.jpg", matchNumber, timeRemaining, increment); //from nettables, grab match # and time remaining
+				cv::imwrite(src_file_name, leftTracker.source, compression_params);
+				}
+			//}
 
 			increment++;
 			cv::waitKey(1);

@@ -56,17 +56,6 @@ CMAKE_BINARY_DIR = /3314/src/build
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target rebuild_cache
-rebuild_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
-	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : rebuild_cache
-
-# Special rule for the target rebuild_cache
-rebuild_cache/fast: rebuild_cache
-
-.PHONY : rebuild_cache/fast
-
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "No interactive CMake dialog available..."
@@ -77,6 +66,17 @@ edit_cache:
 edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
+
+# Special rule for the target rebuild_cache
+rebuild_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
+	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : rebuild_cache
+
+# Special rule for the target rebuild_cache
+rebuild_cache/fast: rebuild_cache
+
+.PHONY : rebuild_cache/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -111,110 +111,30 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named viz
+# Target rules for targets named vizsingle
 
 # Build rule for target.
-viz: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 viz
-.PHONY : viz
+vizsingle: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 vizsingle
+.PHONY : vizsingle
 
 # fast build rule for target.
-viz/fast:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/build
-.PHONY : viz/fast
+vizsingle/fast:
+	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/build
+.PHONY : vizsingle/fast
 
 #=============================================================================
-# Target rules for targets named viz1
+# Target rules for targets named vizside
 
 # Build rule for target.
-viz1: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 viz1
-.PHONY : viz1
+vizside: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 vizside
+.PHONY : vizside
 
 # fast build rule for target.
-viz1/fast:
-	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/build
-.PHONY : viz1/fast
-
-#=============================================================================
-# Target rules for targets named cal
-
-# Build rule for target.
-cal: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 cal
-.PHONY : cal
-
-# fast build rule for target.
-cal/fast:
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/build
-.PHONY : cal/fast
-
-#=============================================================================
-# Target rules for targets named camtest
-
-# Build rule for target.
-camtest: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 camtest
-.PHONY : camtest
-
-# fast build rule for target.
-camtest/fast:
-	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/build
-.PHONY : camtest/fast
-
-calibrate.o: calibrate.cpp.o
-
-.PHONY : calibrate.o
-
-# target to build an object file
-calibrate.cpp.o:
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/calibrate.cpp.o
-.PHONY : calibrate.cpp.o
-
-calibrate.i: calibrate.cpp.i
-
-.PHONY : calibrate.i
-
-# target to preprocess a source file
-calibrate.cpp.i:
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/calibrate.cpp.i
-.PHONY : calibrate.cpp.i
-
-calibrate.s: calibrate.cpp.s
-
-.PHONY : calibrate.s
-
-# target to generate assembly for a file
-calibrate.cpp.s:
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/calibrate.cpp.s
-.PHONY : calibrate.cpp.s
-
-camtest.o: camtest.cpp.o
-
-.PHONY : camtest.o
-
-# target to build an object file
-camtest.cpp.o:
-	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/camtest.cpp.o
-.PHONY : camtest.cpp.o
-
-camtest.i: camtest.cpp.i
-
-.PHONY : camtest.i
-
-# target to preprocess a source file
-camtest.cpp.i:
-	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/camtest.cpp.i
-.PHONY : camtest.cpp.i
-
-camtest.s: camtest.cpp.s
-
-.PHONY : camtest.s
-
-# target to generate assembly for a file
-camtest.cpp.s:
-	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/camtest.cpp.s
-.PHONY : camtest.cpp.s
+vizside/fast:
+	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/build
+.PHONY : vizside/fast
 
 cap_gstreamer.o: cap_gstreamer.cpp.o
 
@@ -222,10 +142,8 @@ cap_gstreamer.o: cap_gstreamer.cpp.o
 
 # target to build an object file
 cap_gstreamer.cpp.o:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.o
-	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/cap_gstreamer.cpp.o
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.o
-	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.o
+	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/cap_gstreamer.cpp.o
+	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/cap_gstreamer.cpp.o
 .PHONY : cap_gstreamer.cpp.o
 
 cap_gstreamer.i: cap_gstreamer.cpp.i
@@ -234,10 +152,8 @@ cap_gstreamer.i: cap_gstreamer.cpp.i
 
 # target to preprocess a source file
 cap_gstreamer.cpp.i:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.i
-	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/cap_gstreamer.cpp.i
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.i
-	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.i
+	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/cap_gstreamer.cpp.i
+	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/cap_gstreamer.cpp.i
 .PHONY : cap_gstreamer.cpp.i
 
 cap_gstreamer.s: cap_gstreamer.cpp.s
@@ -246,65 +162,63 @@ cap_gstreamer.s: cap_gstreamer.cpp.s
 
 # target to generate assembly for a file
 cap_gstreamer.cpp.s:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/cap_gstreamer.cpp.s
-	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/cap_gstreamer.cpp.s
-	$(MAKE) -f CMakeFiles/cal.dir/build.make CMakeFiles/cal.dir/cap_gstreamer.cpp.s
-	$(MAKE) -f CMakeFiles/camtest.dir/build.make CMakeFiles/camtest.dir/cap_gstreamer.cpp.s
+	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/cap_gstreamer.cpp.s
+	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/cap_gstreamer.cpp.s
 .PHONY : cap_gstreamer.cpp.s
 
-vision.1.o: vision.1.cpp.o
+vision_sideways.o: vision_sideways.cpp.o
 
-.PHONY : vision.1.o
-
-# target to build an object file
-vision.1.cpp.o:
-	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/vision.1.cpp.o
-.PHONY : vision.1.cpp.o
-
-vision.1.i: vision.1.cpp.i
-
-.PHONY : vision.1.i
-
-# target to preprocess a source file
-vision.1.cpp.i:
-	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/vision.1.cpp.i
-.PHONY : vision.1.cpp.i
-
-vision.1.s: vision.1.cpp.s
-
-.PHONY : vision.1.s
-
-# target to generate assembly for a file
-vision.1.cpp.s:
-	$(MAKE) -f CMakeFiles/viz1.dir/build.make CMakeFiles/viz1.dir/vision.1.cpp.s
-.PHONY : vision.1.cpp.s
-
-vision.o: vision.cpp.o
-
-.PHONY : vision.o
+.PHONY : vision_sideways.o
 
 # target to build an object file
-vision.cpp.o:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/vision.cpp.o
-.PHONY : vision.cpp.o
+vision_sideways.cpp.o:
+	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/vision_sideways.cpp.o
+.PHONY : vision_sideways.cpp.o
 
-vision.i: vision.cpp.i
+vision_sideways.i: vision_sideways.cpp.i
 
-.PHONY : vision.i
+.PHONY : vision_sideways.i
 
 # target to preprocess a source file
-vision.cpp.i:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/vision.cpp.i
-.PHONY : vision.cpp.i
+vision_sideways.cpp.i:
+	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/vision_sideways.cpp.i
+.PHONY : vision_sideways.cpp.i
 
-vision.s: vision.cpp.s
+vision_sideways.s: vision_sideways.cpp.s
 
-.PHONY : vision.s
+.PHONY : vision_sideways.s
 
 # target to generate assembly for a file
-vision.cpp.s:
-	$(MAKE) -f CMakeFiles/viz.dir/build.make CMakeFiles/viz.dir/vision.cpp.s
-.PHONY : vision.cpp.s
+vision_sideways.cpp.s:
+	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/vision_sideways.cpp.s
+.PHONY : vision_sideways.cpp.s
+
+vision_single.o: vision_single.cpp.o
+
+.PHONY : vision_single.o
+
+# target to build an object file
+vision_single.cpp.o:
+	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/vision_single.cpp.o
+.PHONY : vision_single.cpp.o
+
+vision_single.i: vision_single.cpp.i
+
+.PHONY : vision_single.i
+
+# target to preprocess a source file
+vision_single.cpp.i:
+	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/vision_single.cpp.i
+.PHONY : vision_single.cpp.i
+
+vision_single.s: vision_single.cpp.s
+
+.PHONY : vision_single.s
+
+# target to generate assembly for a file
+vision_single.cpp.s:
+	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/vision_single.cpp.s
+.PHONY : vision_single.cpp.s
 
 # Help Target
 help:
@@ -312,27 +226,19 @@ help:
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... rebuild_cache"
-	@echo "... viz"
 	@echo "... edit_cache"
-	@echo "... viz1"
-	@echo "... cal"
-	@echo "... camtest"
-	@echo "... calibrate.o"
-	@echo "... calibrate.i"
-	@echo "... calibrate.s"
-	@echo "... camtest.o"
-	@echo "... camtest.i"
-	@echo "... camtest.s"
+	@echo "... rebuild_cache"
+	@echo "... vizsingle"
+	@echo "... vizside"
 	@echo "... cap_gstreamer.o"
 	@echo "... cap_gstreamer.i"
 	@echo "... cap_gstreamer.s"
-	@echo "... vision.1.o"
-	@echo "... vision.1.i"
-	@echo "... vision.1.s"
-	@echo "... vision.o"
-	@echo "... vision.i"
-	@echo "... vision.s"
+	@echo "... vision_sideways.o"
+	@echo "... vision_sideways.i"
+	@echo "... vision_sideways.s"
+	@echo "... vision_single.o"
+	@echo "... vision_single.i"
+	@echo "... vision_single.s"
 .PHONY : help
 
 

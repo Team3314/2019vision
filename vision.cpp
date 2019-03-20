@@ -492,10 +492,10 @@ int main(int argc, char *argv[])
 	bool showOutputWindow = false;
 	std::string ntIP = "10.33.14.2";
 	std::string streamIP = "10.33.14.5";
-	int leftCameraID = 3;
-	int rightCameraID = 4;
-	int frontCameraID = 5;
-	int backCameraID = 6;
+	int leftCameraID = 1;
+	int rightCameraID = 2;
+	int frontCameraID = 0;
+	int backCameraID = 3;
 	double leftCameraAngle = 0;   //deg
 	double rightCameraAngle = 0;  //deg
 	double cameraSeparation = 22; //inches
@@ -603,10 +603,10 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		frontCameraID = firstCamera++;
-		leftCameraID = firstCamera++;
-		rightCameraID = firstCamera++;
-		backCameraID = firstCamera;
+		frontCameraID += firstCamera;
+		leftCameraID += firstCamera;
+		rightCameraID += firstCamera;
+		backCameraID += firstCamera;
 	}
 
 	// output this always...

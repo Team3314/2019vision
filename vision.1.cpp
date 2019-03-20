@@ -19,6 +19,18 @@ std::string create_write_pipeline(int width, int height, int framerate,
 			"udpsink host=%s port=%d",
 			width, height, framerate, bitrate, ip.c_str(), port);
 
+			/*"appsrc ! "
+			"video/x-raw, format=(string)BGR, width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! "
+			"videoconvert ! x264enc speed-preset=1 tune=zerolatency bitrate=%d ! rtph264pay ! "
+			"udpsink host=%s port=%d",
+			width, height, framerate, bitrate, ip.c_str(), port);*/
+
+			/*"appsrc ! "
+			"video/x-raw, format=(string)BGR ! videoscale ! videoconvert ! queue ! omxh264enc target-bitrate=%d control-rate=variable ! "
+			"video/x-h264, width=(int)%d, height=(int)%d, framerate=(fraction)%d/1, profile=high ! rtph264pay ! gdppay ! "
+			"udpsink host=%s port=%d",
+			bitrate, width, height, framerate, ip.c_str(), port);*/
+
 	std::string pipstring = buff;
 
 	printf("write string: %s\n", pipstring.c_str());
@@ -411,7 +423,9 @@ class TargetTracker
 				//convex hull around 2 contours
 				//push back convex hull
 				//erase position of two separate contours
+				if (verbose) {
 				std::cout << "in between horiz: " << isBetween(min, max, min2, max2) << std::endl;
+				}
 				std::vector<cv::Point> points, hull;
 
 				points.insert(points.end(), contours[i].begin(), contours[i].end());
@@ -456,7 +470,9 @@ class TargetTracker
 				//convex hull around 2 contours
 				//push back convex hull
 				//erase position of two separate contours
+				if (verbose) {
 				std::cout << "in between horiz: " << isBetween(min, max, min2, max2) << std::endl;
+				}
 				std::vector<cv::Point> points, hull;
 
 				points.insert(points.end(), contours[i].begin(), contours[i].end());
@@ -518,13 +534,13 @@ class TargetTracker
 				continue;
 			}
 			//std::cout << "Width: " << rect.width << " Height: " << rect.height << std::endl;
-			/*if (goal.offset < MIN_OFFSET || goal.offset > MAX_OFFSET)
+			if (goal.offset < MIN_OFFSET || goal.offset > MAX_OFFSET)
 			{
 				if (verbose) {
 					std::cout << "Failed correct angle" << std::endl;
 				}
 				continue;
-			}*/
+			}
 			//std::cout << "Offset: " << offset << std::endl;
 
 			possible.push_back(goal);
@@ -557,7 +573,11 @@ class TargetTracker
 					{
 						possible[j].partner = j;
 					}
-					if (possible[i].isLeft == possible[j].isLeft)
+					if (possible[i].isLeft == possible[j].isLeft || possible[i].isRight == possible[j].isRight)
+						continue;
+					if (possible[i].isLeft && possible[j].isRight && possible[i].center.x > possible[j].center.x)
+						continue;
+					if (possible[i].isRight && possible[j].isLeft && possible[i].center.x < possible[j].center.x)
 						continue;
 					if (!isBetween(min, max, min2, max2))
 						continue;
@@ -571,7 +591,9 @@ class TargetTracker
 					//convex hull around 2 contours
 					//push back convex hull
 					//erase position of two separate contours
+					if (verbose) {
 					std::cout << "in between vert: " << isBetween(min, max, min2, max2) << std::endl;
+					}
 					//std::vector<cv::Point> points, hull;
 					//Goal mergedGoal;
 
@@ -591,8 +613,8 @@ class TargetTracker
 
 		if (possible.size() > 0)
 		{
-			double mostArea = 0, leastArea = 10000;
-			double secondMostArea = 0, secondLeastArea = 10000;
+			double mostArea = 0, closest = 10000;
+			double secondMostArea = 0, secondClosest = 10000;
 
 			int firstBest = 0;
 			int secondBest = 0;
@@ -643,13 +665,25 @@ class TargetTracker
 			}*/
 
 			//wip code for largest target + its partner
-			for (size_t i = 0; i < possible.size(); i++)
+			/*for (size_t i = 0; i < possible.size(); i++)
 			{
 				if (possible[i].cArea >= mostArea)
 				{
 					firstBest = i;
 					//bestGoal = &possible[firstBest];
 					mostArea = possible[i].cArea;
+					secondBest = possible[i].partner;
+					//secondBestGoal = &possible[secondBest];
+				}
+			}*/
+
+			for (size_t i = 0; i < possible.size(); i++)
+			{
+				if (fabs(possible[i].center.x - (OPENCV_WIDTH/2)) < closest)
+				{
+					firstBest = i;
+					//bestGoal = &possible[firstBest];
+					closest = fabs(possible[i].center.x - (OPENCV_WIDTH/2));
 					secondBest = possible[i].partner;
 					//secondBestGoal = &possible[secondBest];
 				}
@@ -811,12 +845,12 @@ int main(int argc, char *argv[])
 	bool showOutputWindow = false;
 	std::string ntIP = "10.33.14.2";
 	std::string streamIP = "10.33.14.5";
-	int leftCameraID = 0;
-	int rightCameraID = 1;
-	int frontCameraID = 2;
+	int leftCameraID = 1;
+	int rightCameraID = 2;
+	int frontCameraID = 0;
 	int backCameraID = 3;
-	double leftCameraAngle = -9.5; //deg
-	double rightCameraAngle = 9.5; //deg
+	double leftCameraAngle = 9.5; //deg
+	double rightCameraAngle = -9.5; //deg
 	double cameraSeparation = 22;  //inches
 	double lastGoodDistance = -1;
 	//cv::Scalar minHueSatVal(55, 80, 35);
@@ -851,9 +885,9 @@ int main(int argc, char *argv[])
 			showOutputWindow = true;
 			ntIP = "192.168.1.198";
 			streamIP = "192.168.1.198";
-			leftCameraID = 0;
-			rightCameraID = 1;
-			frontCameraID = 2;
+			leftCameraID = 1;
+			rightCameraID = 2;
+			frontCameraID = 0;
 			backCameraID = 3;
 			leftCameraAngle = 9.5;   //deg
 			rightCameraAngle = -9.5; //deg
@@ -867,9 +901,9 @@ int main(int argc, char *argv[])
 			showOutputWindow = true;
 			ntIP = "10.33.14.2";
 			streamIP = "10.33.14.15";
-			leftCameraID = 0;
-			rightCameraID = 1;
-			frontCameraID = 2;
+			leftCameraID = 1;
+			rightCameraID = 2;
+			frontCameraID = 0;
 			backCameraID = 3;
 			leftCameraAngle = 9.5;
 			rightCameraAngle = -9.5;
@@ -883,9 +917,9 @@ int main(int argc, char *argv[])
 			showOutputWindow = false;
 			ntIP = "10.33.14.2";
 			streamIP = "10.33.14.5";
-			leftCameraID = 0;
-			rightCameraID = 1;
-			frontCameraID = 2;
+			leftCameraID = 1;
+			rightCameraID = 2;
+			frontCameraID = 0;
 			backCameraID = 3;
 			leftCameraAngle = 9.5;   //deg
 			rightCameraAngle = -9.5; //deg
@@ -952,10 +986,10 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		frontCameraID = firstCamera++;
-		leftCameraID = firstCamera++;
-		rightCameraID = firstCamera++;
-		backCameraID = firstCamera;
+		frontCameraID += firstCamera;
+		leftCameraID += firstCamera;
+		rightCameraID += firstCamera;
+		backCameraID += firstCamera;
 	}
 
 	// output this always...
@@ -970,10 +1004,10 @@ int main(int argc, char *argv[])
 	CvVideoWriter_GStreamer mywriter;
 	std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
 													   BITRATE, streamIP, PORT);
-	if (verbose)
-	{
-		printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
-	}
+	 if (verbose)
+	 {
+	 	printf("GStreamer write pipeline: %s\n", write_pipeline.c_str());
+	 }
 	mywriter.open(write_pipeline.c_str(),
 				  0, FRAMERATE, cv::Size(STREAM_WIDTH, STREAM_HEIGHT), true);
 
