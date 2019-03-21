@@ -210,7 +210,7 @@ class Goal
 			rRatio = 1 / rRatio;
 		}
 
-		cArea = cv::contourArea(contour); //(double)(rect.width*rect.height);
+		cArea = cv::contourArea(contour);
 		cRatio = (double)(rect.width / rect.height);
 		areaRatio = rArea / cArea;
 
@@ -320,9 +320,9 @@ class TargetTracker
 		//double ta = (double)cv::getTickCount();
 		input.read(source);
 		//double tb = (double)cv::getTickCount();
-		//std::cout << "\nreadtime:" << (tb-ta) / cv::getTickFrequency() << std::endl;
-		
-		cv::transpose(source, source);		double t = (double)cv::getTickCount();
+		//std::cout << "\nreadtime:" << (tb - ta) / cv::getTickFrequency() << std::endl;
+
+		cv::transpose(source, source);
 		cv::flip(source, source, 0); //0 for production robot
 	}
 
@@ -334,7 +334,6 @@ class TargetTracker
 		double t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0;
 		double distance;
 
-		//cv::imshow("Source", source);
 		cv::normalize(source, source, 0, 255, cv::NORM_MINMAX);
 		output = source.clone();
 
@@ -363,8 +362,7 @@ class TargetTracker
 			cv::RotatedRect rRect1 = cv::minAreaRect(contours[i]);
 			cv::Point2f pts1[4];
 			rRect1.points(pts1);
-			//TODO: Check for bad contour removal because of constant
-			if (pts1[0].y < (OPENCV_HEIGHT / 5))
+			if (pts1[0].y < (OPENCV_WIDTH / 5))
 			{
 				contours.erase(contours.begin() + i);
 				i--;
@@ -548,7 +546,6 @@ class TargetTracker
 						continue;
 					if (possible[i].isRight && possible[j].isLeft && possible[i].center.x < possible[j].center.x)
 						continue;
-					//Testing code to remove contours inside contours
 					//if (isBetween(possible[i].pts[0].x, possible[i].pts[2].x, possible[j].pts[0].x, possible[j].pts[2].x))
 					if ((possible[i].rect & possible[j].rect).area() > 0)
 						continue;
@@ -557,8 +554,7 @@ class TargetTracker
 					double currentDistBetween = fabs(possible[i].center.x - possible[j].center.x);
 					if (currentDistBetween > bestDistBetween)
 						continue;
-					//TODO: Check for bad partner filtering because of constant
-					if (currentDistBetween > (OPENCV_WIDTH / 1.5))
+					if (currentDistBetween > (OPENCV_HEIGHT / 1.5))
 						continue;
 
 					if (verbose)
@@ -599,10 +595,10 @@ class TargetTracker
 			//Closest target and partner
 			for (size_t i = 0; i < possible.size(); i++)
 			{
-				if (fabs(possible[i].center.x - OPENCV_HEIGHT/2) < closest)
+				if (fabs(possible[i].center.x - OPENCV_HEIGHT / 2) < closest)
 				{
 					firstBest = i;
-					closest = fabs(possible[i].center.x - OPENCV_HEIGHT/2);
+					closest = fabs(possible[i].center.x - OPENCV_HEIGHT / 2);
 					secondBest = possible[i].partner;
 				}
 			}
@@ -663,8 +659,6 @@ class TargetTracker
 				//std::cout << "Position: " << center.x << std::endl;
 			}
 
-			//need area/boundingbox of both
-			//is left target is left of right target
 			if (best.size() == 2)
 			{
 				//Erase second best if not within 80% of best area
@@ -737,7 +731,14 @@ class TargetTracker
 			}
 		}
 
-		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, 640), cv::Scalar(0, 0, 255), 2);
+		if(hasLeft && hasRight) 
+		{
+		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_WIDTH), GREEN, 2);
+		} 
+		else 
+		{
+		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_WIDTH), RED, 2);
+		}
 		cv::circle(output, cv::Point(OPENCV_HEIGHT / 2, OPENCV_WIDTH / 2), 10, GREEN, 5);
 
 		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
@@ -918,6 +919,7 @@ int main(int argc, char *argv[])
 		double angleToTarget = -1;
 
 		leftTracker.capture();
+
 		//frontCamera.read(frontImg);
 		//cv::transpose(frontImg, frontImg);
 		//cv::flip(frontImg, frontImg, 1); //1 for production robot
@@ -938,9 +940,10 @@ int main(int argc, char *argv[])
 			if (leftTracker.targetsFound == 2)
 			{
 				//TODO: Adapt these into existing or new functions
-				bool production = true;
+				bool production = false;
 				double camAngle;	  // = 18*(CV_PI/180.0); // radians
 				double camView;		  // = 67*(CV_PI/180.0); // radians
+				double camView_x;	//radians
 				double camHeight;	 // = 13.0; // inches
 				double camOffset;	 // = 1.25; // inches
 				double camHorizAngle; // = 5;
@@ -949,41 +952,42 @@ int main(int argc, char *argv[])
 				{
 					camAngle = 18 * (CV_PI / 180.0); // radians
 					camView = 67 * (CV_PI / 180.0);  // radians
+					camView_x = 43 * (CV_PI / 180.0); //radians
 					camHeight = 13.5;				 // inches
-					camOffset = 0;				 // inches - 0 for production, for now leave in practice
+					camOffset = 0;					 // inches - 0 for production, for now leave in practice
 					camHorizAngle = 0;				 // degrees - now in main code
 				}
 				else
 				{
-					camAngle = 18 * (CV_PI / 180.0); // radians
+					camAngle = 23.5 * (CV_PI / 180.0); // radians
 					camView = 67 * (CV_PI / 180.0);  // radians
-					camHeight = 13;					 // inches
-					camOffset = 1.25;				 // inches - 0 for production, for now leave in practice 
+					camView_x = 43 * (CV_PI / 180.0); //radians
+					camHeight = 12;					 // inches
+					camOffset = 0;					 // inches - 0 for production, for now leave in practice
 					camHorizAngle = 0;				 // degrees - now in main code
 				}
 
 				//Y-pos
-				double pixel = leftTracker.targetY - 320;			// pixels
-				double fpix = 320 / tan(camView / 2);				// pixels
-				double fdot = fpix * fpix;							// pixels^2
-				double normpix = sqrt(fpix * fpix + pixel * pixel); // pixels
-				double anglepix = acos(fdot / (fpix * normpix));	// radians without sign
+				double pixel = leftTracker.targetY - (OPENCV_WIDTH / 2); // pixels
+				double fpix = (OPENCV_WIDTH / 2) / tan(camView / 2);		 // pixels
+				double fdot = fpix * fpix;								 // pixels^2
+				double normpix = sqrt(fpix * fpix + pixel * pixel);		 // pixels
+				double anglepix = acos(fdot / (fpix * normpix));		 // radians without sign
 				if (pixel < 0)
 					anglepix *= -1;											// radians with sign
 				distance = (31.40 - camHeight) / tan(anglepix + camAngle);  // inches
 				distanceHigh = (40 - camHeight) / tan(anglepix + camAngle); // inches
 
 				//X-pos
-				double pixel_x = leftTracker.targetX - 180;
-				double camView_x = 43 * (CV_PI / 180.0);
-				double fpix_x = 180 / tan(camView_x / 2);
+				double pixel_x = leftTracker.targetX - (OPENCV_HEIGHT / 2);
+				double fpix_x = (OPENCV_HEIGHT / 2) / tan(camView_x / 2);
 				double fdot_x = fpix_x * fpix_x;
 				double normpix_x = sqrt(fpix_x * fpix_x + pixel_x * pixel_x);
 				double anglepix_x = acos(fdot_x / (fpix_x * normpix_x));
 				if (pixel_x < 0)
 					anglepix_x *= -1;
 				//double correction = atan(camOffset/distance);
-				angleToTarget = (anglepix_x) * (180 / CV_PI) - camHorizAngle; //camHorizAngle now dependent on Filip
+				angleToTarget = (anglepix_x) * (180.0 / CV_PI) - camHorizAngle;
 
 				//Old console outputs
 				//std::cout << "xxxtargetY" << leftTracker.targetY << std::endl;
@@ -993,10 +997,8 @@ int main(int argc, char *argv[])
 				// std::cout << "xxxtan" << tan(anglepix+camAngle) << std::endl;
 				//std::cout << "xxxcorrection" << correction*(180/CV_PI) << std::endl;
 				//std::cout << "xxxangletotarget" << angleToTarget << std::endl;
-				//distance = (31.40-13) / tan((CV_PI/180) * (leftTracker.bottomTargetAngle)); // + leftTracker.baseOffset));
 
 				lastGoodDistance = distance;
-				botDistance = distance - camHorizAngle;
 			}
 
 			//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
@@ -1021,29 +1023,30 @@ int main(int argc, char *argv[])
 			myNetTable->PutNumber("increment", increment);
 			myNetTable->Flush();
 
-			//cv::Mat combine(360, 320, CV_8UC3);
+			/*cv::Mat combine(360, 320, CV_8UC3);
 			int primary = myNetTable->GetNumber("Primary img", -1);
 
-			//cv::Rect ROI1(0, 0, 160, 360);
-			//cv::Rect ROI2(160, 0, 160, 360);
-			//cv::Mat temp;
+			cv::Rect ROI1(0, 0, 160, 360);
+			cv::Rect ROI2(160, 0, 160, 360);
+			cv::Mat temp;
 
 			switch (primary)
 			{
 			case 0:
 				break;
 			default:
-				//cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
-				//temp.copyTo(combine(ROI1));
-				//cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
-				//temp.copyTo(combine(ROI2));
+				cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
+				temp.copyTo(combine(ROI1));
+				cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+				temp.copyTo(combine(ROI2));
 				break;
-			}
+			}*/
 
 			if (showOutputWindow)
 			{
 				//cv::imshow("Output", combine);
 				cv::imshow("Output", leftTracker.output);
+				cv::imshow("Output2", leftTracker.output);
 			}
 
 			//IplImage outImage = (IplImage)combine;
@@ -1053,7 +1056,7 @@ int main(int argc, char *argv[])
 			int matchNumber = myNetTable->GetNumber("Match Number", 0);
 			int timeRemaining = myNetTable->GetNumber("Time Remaining", 0);
 
-			if (((increment % 5) == 0) && enabled && matchNumber != 0)
+			if (((increment % 5) == 0) && enabled  && matchNumber != 0)
 			{
 				std::vector<int> compression_params;
 				compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
@@ -1062,7 +1065,6 @@ int main(int argc, char *argv[])
 				char src_file_name[100];
 
 				sprintf(file_name, "/3314/images/match%d_%d_%d.jpg", matchNumber, timeRemaining, increment);
-				//cv::imwrite(file_name, combine, compression_params);
 				cv::imwrite(file_name, leftTracker.output, compression_params);
 				sprintf(src_file_name, "/3314/images/SRC_match%d_%d_%d.jpg", matchNumber, timeRemaining, increment);
 				cv::imwrite(src_file_name, leftTracker.source, compression_params);
