@@ -316,7 +316,7 @@ class TargetTracker
 		);
 	}
 
-	void capture()
+	void capture(std::shared_ptr<NetworkTable> myNetTable)
 	{
 		frame++;
 		// if (frame == 50)
@@ -334,16 +334,18 @@ class TargetTracker
 		double saturation =255;
 		double gain = 0;
 		double hue = 0;
+		cv::Scalar minHSV{55, 80, 35};
+		cv::Scalar maxHSV{120, 255, 255};
 
 		minHSV = cv::Scalar(
-			myNetTable->GetNumber("minH", minHueSatVal.val[0]), 
-			myNetTable->GetNumber("minS", minHueSatVal.val[1], 
-			myNetTable->GetNumber("minV", minHueSatVal.val[2])
+			myNetTable->GetNumber("minH", minHSV.val[0]), 
+			myNetTable->GetNumber("minS", minHSV.val[1]), 
+			myNetTable->GetNumber("minV", minHSV.val[2])
 			);
 		maxHSV = cv::Scalar(
-			myNetTable->GetNumber("maxH", maxHueSatVal.val[0]), 
-			myNetTable->GetNumber("maxS", maxHueSatVal.val[1]), 
-			myNetTable->GetNumber("maxV", maxHueSatVal.val[2])
+			myNetTable->GetNumber("maxH", maxHSV.val[0]), 
+			myNetTable->GetNumber("maxS", maxHSV.val[1]), 
+			myNetTable->GetNumber("maxV", maxHSV.val[2])
 			);
 
 		exposure = 	myNetTable->GetNumber("exposure", exposure);
@@ -357,7 +359,7 @@ class TargetTracker
 		input.read(source);
 	}
 
-	void analyze()
+	void analyze(std::shared_ptr<NetworkTable> myNetTable)
 	{
 
 		double minAreaRatio = myNetTable->GetNumber("minAreaRatio", MIN_AREA_RATIO);
@@ -516,7 +518,7 @@ class TargetTracker
 		if (possible.size() > 0)
 		{
 			//match left and right pairs
-			size = possible.size();
+			int size = possible.size();
 			for (size_t i = 0; i < size; i++)
 			{
 				double min = possible[i].pts[2].y;
@@ -707,7 +709,7 @@ class TargetTracker
 		targetAngle = angleFromPixels(centeredTargetX) + baseOffset;
 		//std::cout << "base offset: " << baseOffset << std::endl;
 
-		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+		//t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 		//std::cout << t * 1000 << "ms" << std::endl;
 		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
 	}
@@ -903,7 +905,13 @@ int main(int argc, char *argv[])
 	cv::VideoCapture frontCamera(frontCameraID);
 	//cv::VideoCapture backCamera(backCameraID);
 	cv::Mat frontImg, backImg;
-	setVideoCaps(frontCamera, 50);
+		setVideoCaps(frontCamera, exposure,
+			brightness,
+			contrast,
+			saturation,
+			gain,
+			hue
+		);
 	//setVideoCaps(backCamera);
 
 	std::shared_ptr<NetworkTable> myNetTable;
@@ -938,16 +946,21 @@ int main(int argc, char *argv[])
 		leftTracker.lowestAreaFilter = hintingExample;
 		rightTracker.lowestAreaFilter = hintingExample;
 
+<<<<<<< HEAD
 		leftTracker.capture();
 		rightTracker.capture();
-		frontCamera.read(frontImg);
+=======
 		//backCamera.read(backImg);
-
 
 		if (leftTracker.frame > 100 && rightTracker.frame > 100)
 		{
+<<<<<<< HEAD
 			leftTracker.analyze();
 			rightTracker.analyze();
+=======
+			leftTracker.analyze(myNetTable);
+			rightTracker.analyze(myNetTable);
+>>>>>>> 6cf63c59c796efcbcd566759c271d7fc63dd49e8
 
 			if (verbose)
 			{
@@ -1037,6 +1050,7 @@ int main(int argc, char *argv[])
 							cv::resize(leftTracker.output, temp, cv::Size(roi.width, roi.height));
 							break;
 						case 3:
+<<<<<<< HEAD
 							cv::resize(leftTracker.source, temp, cv::Size(roi.width, roi.height));
 							break;
 						case 4:
@@ -1049,6 +1063,20 @@ int main(int argc, char *argv[])
 				}
 			}
 			temp.copyTo(combine(roi));
+=======
+							cv::resize(rightTracker.source, temp, cv::Size(roi.width, roi.height));
+							break;
+						case 4:
+							cv::resize(rightTracker.hsv, temp, cv::Size(roi.width, roi.height));
+							break;
+						case 5:
+							cv::resize(rightTracker.output, temp, cv::Size(roi.width, roi.height));
+							break;
+					}
+					temp.copyTo(combine(roi));
+				}
+			}
+>>>>>>> 6cf63c59c796efcbcd566759c271d7fc63dd49e8
 
 			cv::imshow("Output", combine);
 			IplImage outImage = (IplImage)combine;
