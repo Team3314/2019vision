@@ -167,6 +167,8 @@ class Goal
 	cv::Point2f pts[4];
 	cv::Point2f center;
 
+	cv::Point2f ll, lr, ul, ur;
+
 	float angle;
 	float offset;
 
@@ -226,6 +228,21 @@ class Goal
 		}
 
 		partner = -1;
+
+		if (isLeft)
+		{
+			lr = pts[0];
+			ll = pts[0] + rWidth;
+			ul = pts[2];
+			ur = pts[0] + rHeight;
+		}
+		else
+		{
+			lr = pts[0] + rWidth;
+			ll = pts[0];
+			ul = pts[0] + rHeight;
+			ur = pts[2];
+		}
 	}
 };
 
@@ -704,8 +721,6 @@ class TargetTracker
 				//targetY = (rightCenter.y + leftCenter.y) / 2;
 				targetY = OPENCV_WIDTH - ((best[0].pts[2].y + best[1].pts[2].y) / 2);
 				distance = (rightCenter.x - leftCenter.x) / 2;
-				//leftTargetAngle = (leftCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
-				//rightTargetAngle = (rightCenter.x-(OPENCV_WIDTH/2)) * HORZ_DEGREES_PER_PIXEL * multiplier + baseOffset;
 				leftTargetAngle = angleFromRawPixels(leftCenter.x) + baseOffset;
 				rightTargetAngle = angleFromRawPixels(rightCenter.x) + baseOffset;
 				bottomTargetAngle = angleFromRawPixels(targetY);
@@ -731,15 +746,19 @@ class TargetTracker
 			}
 		}
 
-		if(hasLeft && hasRight) 
+		if (hasLeft && hasRight)
 		{
-		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_WIDTH), GREEN, 2);
-		} 
-		else 
+			cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_WIDTH), GREEN, 2);
+		}
+		else
 		{
-		cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_WIDTH), RED, 2);
+			cv::line(output, cv::Point(targetX, 0), cv::Point(targetX, OPENCV_WIDTH), RED, 2);
 		}
 		cv::circle(output, cv::Point(OPENCV_HEIGHT / 2, OPENCV_WIDTH / 2), 10, GREEN, 5);
+		cv::circle(output, lr, 10, WHITE, 5);
+		cv::circle(output, ll, 10, CYAN, 5);
+		cv::circle(output, ul, 10, WHITE, 5);
+		cv::circle(output, ur, 10, CYAN, 5);
 
 		centeredTargetX = targetX - (OPENCV_WIDTH / 2);
 		//std::cout << "centeredTargetX: " << centeredTargetX << std::endl;
@@ -763,7 +782,7 @@ int main(int argc, char *argv[])
 	bool verbose = false;
 	bool showOutputWindow = false;
 	std::string ntIP = "10.33.14.2";
-	std::string streamIP = "10.33.14.5";
+	//std::string streamIP = "10.33.14.5";
 	int leftCameraID = 0;
 	//int frontCameraID = 1;
 	double leftCameraAngle = 17.25;
@@ -780,7 +799,7 @@ int main(int argc, char *argv[])
 			std::cout << "dev - dev mode defaults" << std::endl;
 			std::cout << "robot - robot mode defaults" << std::endl;
 			std::cout << "ntip <ip> - network table ip address" << std::endl;
-			std::cout << "streamip <ip> - stream output ip address" << std::endl;
+			//std::cout << "streamip <ip> - stream output ip address" << std::endl;
 			std::cout << "showoutput - show output window locally" << std::endl;
 			std::cout << "leftcameraid <id> - left camera id override" << std::endl;
 			std::cout << "leftcameraangle <double> - left camera angle override" << std::endl;
@@ -795,8 +814,8 @@ int main(int argc, char *argv[])
 			debug = true;
 			verbose = true;
 			showOutputWindow = true;
-			ntIP = "192.168.1.198";
-			streamIP = "192.168.1.198";
+			ntIP = "10.33.14.2";
+			//streamIP = "10.33.14.15";
 			leftCameraID = 0;
 			//frontCameraID = 0;
 			leftCameraAngle = 17.25;
@@ -810,7 +829,7 @@ int main(int argc, char *argv[])
 			verbose = true;
 			showOutputWindow = true;
 			ntIP = "10.33.14.2";
-			streamIP = "10.33.14.15";
+			//streamIP = "10.33.14.15";
 			leftCameraID = 1;
 			//frontCameraID = 0;
 			leftCameraAngle = 17.25;
@@ -824,7 +843,7 @@ int main(int argc, char *argv[])
 			verbose = false;
 			showOutputWindow = false;
 			ntIP = "10.33.14.2";
-			streamIP = "10.33.14.5";
+			//streamIP = "10.33.14.5";
 			leftCameraID = 1;
 			//frontCameraID = 0;
 			leftCameraAngle = 17.25;
@@ -837,7 +856,7 @@ int main(int argc, char *argv[])
 		}
 		if (args[i] == "streamip")
 		{
-			streamIP = args[i + 1];
+			//streamIP = args[i + 1];
 		}
 		if (args[i] == "showoutput")
 		{
@@ -882,7 +901,7 @@ int main(int argc, char *argv[])
 
 	//Always console output
 	std::cout << "LeftCameraID: " << leftCameraID << std::endl; //"  FrontCameraID: " << frontCameraID << std::endl;
-	std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl;
+	std::cout << "ntIP: " << ntIP << std::endl;					//"  streamIP: " << streamIP << std::endl;
 	std::cout << "LeftCameraAngle: " << leftCameraAngle << std::endl;
 	std::cout << "MinHSV: " << minHueSatVal << " MaxHSV: " << maxHueSatVal << std::endl;
 
@@ -915,7 +934,7 @@ int main(int argc, char *argv[])
 		double distance = -1;
 		double distanceHigh = -1;
 		double botDistance = -1;
-		double offset = -1;
+		//double offset = -1;
 		double angleToTarget = -1;
 
 		leftTracker.capture();
@@ -931,9 +950,9 @@ int main(int argc, char *argv[])
 			if (verbose)
 			{
 				std::cout << "\nIncrement: " << increment << std::endl;
-				std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
-				std::cout << "fixed target y: " << leftTracker.targetY << std::endl;
-				std::cout << "bottom target angle: " << leftTracker.bottomTargetAngle << std::endl;
+				std::cout << "Centered targetX: " << leftTracker.centeredTargetX << std::endl;
+				std::cout << "Fixed targetY: " << leftTracker.targetY << std::endl;
+				std::cout << "Bottom target angle: " << leftTracker.bottomTargetAngle << std::endl;
 				std::cout << "Target angle: " << leftTracker.targetAngle << std::endl;
 			}
 
@@ -941,45 +960,48 @@ int main(int argc, char *argv[])
 			{
 				//TODO: Adapt these into existing or new functions
 				bool production = false;
-				double camAngle;	  // = 18*(CV_PI/180.0); // radians
-				double camView;		  // = 67*(CV_PI/180.0); // radians
-				double camView_x;	//radians
-				double camHeight;	 // = 13.0; // inches
-				double camOffset;	 // = 1.25; // inches
-				double camHorizAngle; // = 5;
+				double camAngle;  // = 18*(CV_PI/180.0); // radians
+				double camView;   // = 67*(CV_PI/180.0); // radians
+				double camView_x; //radians
+				double camHeight; // = 13.0; // inches
+				//double camOffset;	 // = 1.25; // inches
+				//double camHorizAngle; // = 5;
 
 				if (production)
 				{
 					camAngle = 27.25 * (CV_PI / 180.0); // radians
-					camView = 67 * (CV_PI / 180.0);  // radians
-					camView_x = 43 * (CV_PI / 180.0); //radians
-					camHeight = 12;				 // inches
-					camOffset = 0;					 // inches - 0 for production, for now leave in practice
-					camHorizAngle = 0;				 // degrees - now in main code
+					camView = 67 * (CV_PI / 180.0);		// radians
+					camView_x = 43 * (CV_PI / 180.0);   //radians
+					camHeight = 12;						// inches
+														//camOffset = 0;					 // inches - 0 for production, for now leave in practice
+														//camHorizAngle = 0;				 // degrees - now in main code
 				}
 				else
 				{
 					camAngle = 23.5 * (CV_PI / 180.0); // radians
-					camView = 67 * (CV_PI / 180.0);  // radians
-					camView_x = 43 * (CV_PI / 180.0); //radians
-					camHeight = 12;					 // inches
-					camOffset = 0;					 // inches - 0 for production, for now leave in practice
-					camHorizAngle = 0;				 // degrees - now in main code
+					camView = 67 * (CV_PI / 180.0);	// radians
+					camView_x = 43 * (CV_PI / 180.0);  //radians
+					camHeight = 12;					   // inches
+													   //camOffset = 0;					 // inches - 0 for production, for now leave in practice
+													   //camHorizAngle = 0;				 // degrees - now in main code
 				}
 
 				//Y-pos
 				double pixel = leftTracker.targetY - (OPENCV_WIDTH / 2); // pixels
-				double fpix = (OPENCV_WIDTH / 2) / tan(camView / 2);		 // pixels
+				double fpix = (OPENCV_WIDTH / 2) / tan(camView / 2);	 // pixels
 				double fdot = fpix * fpix;								 // pixels^2
 				double normpix = sqrt(fpix * fpix + pixel * pixel);		 // pixels
 				double anglepix = acos(fdot / (fpix * normpix));		 // radians without sign
 				if (pixel < 0)
-					anglepix *= -1;											// radians with sign
-				double netAngle = anglepix+camAngle;
-				if (netAngle <= 0) {
-					distance = 1337.254;  // inches
+					anglepix *= -1; // radians with sign
+				double netAngle = anglepix + camAngle;
+				if (netAngle <= 0)
+				{
+					distance = 1337.254; // inches
 					distanceHigh = 1337.254;
-				} else {
+				}
+				else
+				{
 					distance = (31.40 - camHeight) / tan(netAngle);  // inches
 					distanceHigh = (40 - camHeight) / tan(netAngle); // inches
 				}
@@ -993,7 +1015,7 @@ int main(int argc, char *argv[])
 				if (pixel_x < 0)
 					anglepix_x *= -1;
 				//double correction = atan(camOffset/distance);
-				angleToTarget = (anglepix_x) * (180.0 / CV_PI) - camHorizAngle;
+				angleToTarget = (anglepix_x) * (180.0 / CV_PI); //Horiz angle now in main code
 
 				//Old console outputs
 				//std::cout << "xxxtargetY" << leftTracker.targetY << std::endl;
@@ -1021,9 +1043,9 @@ int main(int argc, char *argv[])
 
 			if (verbose)
 			{
-				std::cout << "distance: " << distance << std::endl;
-				std::cout << "distance high: " << distanceHigh << std::endl;
-				std::cout << "angle to target: " << angleToTarget << std::endl;
+				std::cout << "Distance: " << distance << std::endl;
+				std::cout << "Distance high: " << distanceHigh << std::endl;
+				std::cout << "Angle to target: " << angleToTarget << std::endl;
 			}
 
 			myNetTable->PutNumber("increment", increment);
@@ -1048,6 +1070,10 @@ int main(int argc, char *argv[])
 				break;
 			}*/
 
+			cv::putText(output, "Dist: " + distance, 50, FONT_HERSHEY_SIMPLEX, 5, CYAN);
+			cv::putText(output, "Angle: " + angleToTarget, 100, FONT_HERSHEY_SIMPLEX, 5, CYAN);
+			cv::putText(output, "(" + leftTracker.targetX + "," + leftTracker.targetY + ")", 150, FONT_HERSHEY_SIMPLEX, 5, CYAN);
+
 			if (showOutputWindow)
 			{
 				//cv::imshow("Output", combine);
@@ -1062,7 +1088,7 @@ int main(int argc, char *argv[])
 			int matchNumber = myNetTable->GetNumber("Match Number", 0);
 			int timeRemaining = myNetTable->GetNumber("Time Remaining", 0);
 
-			if (((increment % 5) == 0) && enabled  && matchNumber != 0)
+			if (((increment % 5) == 0) && enabled && (matchNumber != 0 || debug))
 			{
 				std::vector<int> compression_params;
 				compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
