@@ -44,7 +44,7 @@ std::string RP_camera_module_v2_pipeline(int width, int height, int framerate,
 	return pipestring;
 }
 
-
+/*
 //Analysis settings
 void flash_good_settings(int device)
 {
@@ -60,42 +60,16 @@ void flash_bad_settings(int device)
 	sprintf(setting_script, "/3314/src/bad_settings.sh %d", device);
 	system(setting_script);
 }
+*/
 
+/*
 void setVideoCaps(cv::VideoCapture &input)
 {
 	input.set(CV_CAP_PROP_FRAME_WIDTH, OPENCV_WIDTH);
 	input.set(CV_CAP_PROP_FRAME_HEIGHT, OPENCV_HEIGHT);
 }
+*/
 
-double angleFromPixels(double ctx)
-{
-	// Compute focal length in pixels from FOV
-	double f = (0.5 * OPENCV_WIDTH) / tan(0.5 * FOV_RADIANS);
-
-	// Vectors subtending image center and pixel from optical center
-	// in camera coordinates.
-	cv::Point3f center(0, 0, f), pixel(ctx, 0, f);
-
-	// angle between vector (0, 0, f) and pixel
-	//double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
-	double dot = f * f;
-
-	double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel)))) * (180 / CV_PI);
-
-	// The dot product will always return a cos>0
-	// when the vectors are pointing in the same general
-	// direction.
-	// This means that no ctx will produce a negative value.
-	// We need to force the value negative to indicate "to the left".
-	if (ctx < 0)
-		alpha = -alpha;
-	return alpha;
-}
-
-double angleFromRawPixels(double tx)
-{
-	return angleFromPixels(tx - (OPENCV_WIDTH / 2));
-}
 
 //Detect camera ID on Ubuntu
 int findFirstCamera()
@@ -802,6 +776,39 @@ class TargetTracker
 		//std::cout << t * 1000 << "ms" << std::endl;
 		//std::cout << t1 * 1000 << "ms " << t2 * 1000 << "ms " << t3 * 1000 << "ms " << t4 * 1000 << "ms " /*<< t5 * 1000 << "ms"*/ << std::endl;
 	}
+
+
+    double angleFromPixels(double ctx)
+    {
+    	// Compute focal length in pixels from FOV
+    	double f = (0.5 * OPENCV_WIDTH) / tan(0.5 * FOV_RADIANS);
+
+    	// Vectors subtending image center and pixel from optical center
+    	// in camera coordinates.
+    	cv::Point3f center(0, 0, f), pixel(ctx, 0, f);
+
+    	// angle between vector (0, 0, f) and pixel
+    	//double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
+    	double dot = f * f;
+
+    	double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel)))) * (180 / CV_PI);
+
+    	// The dot product will always return a cos>0
+    	// when the vectors are pointing in the same general
+    	// direction.
+    	// This means that no ctx will produce a negative value.
+    	// We need to force the value negative to indicate "to the left".
+    	if (ctx < 0)
+    		alpha = -alpha;
+    	return alpha;
+    }
+
+    double angleFromRawPixels(double tx)
+    {
+    	return angleFromPixels(tx - (OPENCV_WIDTH / 2));
+    }
+
+
 };
 
 int main(int argc, char *argv[])
