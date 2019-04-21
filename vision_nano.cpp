@@ -1,4 +1,5 @@
 #include "vision.hpp"
+#include "RPV2CameraInfo.hpp"
 
 //Displaying and streaming cameras
 /*std::string create_write_pipeline(int width, int height, int framerate,
@@ -18,9 +19,8 @@
 	return pipstring;
 }*/
 
-std::string RP_camera_module_v2_pipeline(int width, int height, int framerate,
-								  int gainLow, int gainHigh, int ispGainLow, int ispGainHigh,
-								  long exposureLow, long exposureHigh)
+/*
+std::string GetPipeline()
 {
 	char buff[500];
 	sprintf(buff,
@@ -35,14 +35,15 @@ std::string RP_camera_module_v2_pipeline(int width, int height, int framerate,
 			"! videoconvert "
 			"! video/x-raw,format=(string)BGR "
 			"! appsink",
-			gainLow, gainHigh, ispGainLow, ispGainHigh,
-			exposureLow, exposureHigh,
-			width, height, framerate);
+			MinGain, MaxGain, MinIspGain, MaxIspGain,
+			MinExposure, MaxExposure,
+			Width, Height, Framerate);
 
 	std::string pipestring = buff;
 	//printf("write string: %s\n", pipstring.c_str());
 	return pipestring;
 }
+*/
 
 /*
 //Analysis settings
@@ -261,8 +262,11 @@ class TargetTracker
 	bool hasLeft = false;
 	bool hasRight = false;
 
-	TargetTracker(int Device, double BaseOffset, double Multiplier, bool Verbose, cv::Scalar MinHSV, cv::Scalar MaxHSV)
-		: input(RP_camera_module_v2_pipeline(640,480,30, 1, 1, 1, 1, 36000000, 36000000), cv::CAP_GSTREAMER)
+
+
+
+	TargetTracker(CameraInfo camInfo, double BaseOffset, double Multiplier, bool Verbose, cv::Scalar MinHSV, cv::Scalar MaxHSV)
+		: input(camInfo.GetPipeline(), cv::CAP_GSTREAMER)
 	{
 		double exposure = 20;
 		double brightness = 100;
@@ -821,12 +825,14 @@ int main(int argc, char *argv[])
 	bool showOutputWindow = false;
 	std::string ntIP = "10.33.14.2";
 	std::string streamIP = "10.33.14.5";
-	int leftCameraID = 0;
+	//int leftCameraID = 0;
 	//int frontCameraID = 1;
-	double leftCameraAngle = 17.25;
+	//double leftCameraAngle = 17.25;
 	double lastGoodDistance = -1;
 	cv::Scalar minHueSatVal(65, 0, 100);
 	cv::Scalar maxHueSatVal(100, 245, 234);
+
+  RPV2CameraInfo camInfo(640,480,30, 62.2, 48.8, 0, 0, 1, 1, 1, 1, 36000000, 36000000);
 
 	std::vector<std::string> args(argv, argv + argc);
 	for (size_t i = 1; i < args.size(); ++i)
@@ -854,9 +860,7 @@ int main(int argc, char *argv[])
 			showOutputWindow = true;
 			ntIP = "192.168.1.198";
 			streamIP = "192.168.1.198";
-			leftCameraID = 0;
-			//frontCameraID = 0;
-			leftCameraAngle = 17.25;
+			camInfo.VertMountAngle = 17.25;
 			minHueSatVal = cv::Scalar(65, 0, 100);
 			maxHueSatVal = cv::Scalar(100, 245, 234);
 		}
@@ -868,9 +872,7 @@ int main(int argc, char *argv[])
 			showOutputWindow = true;
 			ntIP = "10.33.14.2";
 			streamIP = "10.33.14.15";
-			leftCameraID = 1;
-			//frontCameraID = 0;
-			leftCameraAngle = 17.25;
+			camInfo.VertMountAngle = 17.25;
 			minHueSatVal = cv::Scalar(85, 40, 100);
 			maxHueSatVal = cv::Scalar(140, 245, 234);
 		}
@@ -882,9 +884,7 @@ int main(int argc, char *argv[])
 			showOutputWindow = false;
 			ntIP = "10.33.14.2";
 			streamIP = "10.33.14.5";
-			leftCameraID = 1;
-			//frontCameraID = 0;
-			leftCameraAngle = 17.25;
+			camInfo.VertMountAngle = 17.25;
 			minHueSatVal = cv::Scalar(65, 0, 100);
 			maxHueSatVal = cv::Scalar(100, 245, 234);
 		}
@@ -904,17 +904,17 @@ int main(int argc, char *argv[])
 		{
 			verbose = true;
 		}
-		if (args[i] == "leftcameraid")
-		{
-			leftCameraID = atoi(args[i + 1].c_str());
-		}
-		if (args[i] == "frontcameraid")
-		{
-			//frontCameraID = atoi(args[i + 1].c_str());
-		}
+		//if (args[i] == "leftcameraid")
+		//{
+		//	leftCameraID = atoi(args[i + 1].c_str());
+		//}
+		//if (args[i] == "frontcameraid")
+		//{
+		//	//frontCameraID = atoi(args[i + 1].c_str());
+		//}
 		if (args[i] == "leftcameraangle")
 		{
-			leftCameraAngle = stod(args[i + 1]);
+			camInfo.VertMountAngle = stod(args[i + 1]);
 		}
 		if (args[i] == "minhsv")
 		{
@@ -926,6 +926,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/*
 	int firstCamera = findFirstCamera();
 	if (firstCamera == -1)
 	{
@@ -936,14 +937,15 @@ int main(int argc, char *argv[])
 		//frontCameraID += firstCamera;
 		leftCameraID += firstCamera;
 	}
+	*/
 
 	//Always console output
-	std::cout << "LeftCameraID: " << leftCameraID << std::endl; //"  FrontCameraID: " << frontCameraID << std::endl;
+	//std::cout << "LeftCameraID: " << leftCameraID << std::endl; //"  FrontCameraID: " << frontCameraID << std::endl;
 	std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl;
 	std::cout << "LeftCameraAngle: " << leftCameraAngle << std::endl;
 	std::cout << "MinHSV: " << minHueSatVal << " MaxHSV: " << maxHueSatVal << std::endl;
 
-	CvVideoWriter_GStreamer mywriter;
+	//CvVideoWriter_GStreamer mywriter;
 	/*std::string write_pipeline = create_write_pipeline(STREAM_WIDTH, STREAM_HEIGHT, FRAMERATE,
 													   BITRATE, streamIP, PORT);
 	 if (verbose)
@@ -955,7 +957,7 @@ int main(int argc, char *argv[])
 
 	long long increment = 0;
 
-	TargetTracker leftTracker(leftCameraID, leftCameraAngle, LEFT_MULTIPLIER, verbose, minHueSatVal, maxHueSatVal);
+	TargetTracker targetTracker(camInfo, leftCameraAngle, LEFT_MULTIPLIER, verbose, minHueSatVal, maxHueSatVal);
 	//cv::VideoCapture frontCamera(frontCameraID);
 	//cv::Mat frontImg;
 	//setVideoCaps(frontCamera);
@@ -976,26 +978,26 @@ int main(int argc, char *argv[])
 		double offset = -1;
 		double angleToTarget = -1;
 
-		leftTracker.capture();
+		targetTracker.capture();
 
 		//frontCamera.read(frontImg);
 		//cv::transpose(frontImg, frontImg);
 		//cv::flip(frontImg, frontImg, 1); //1 for production robot
 
-		if (leftTracker.frame > 100)
+		if (targetTracker.frame >= camInfo.WarmupDelay)
 		{
-			leftTracker.analyze();
+			targetTracker.analyze();
 
 			if (verbose)
 			{
 				std::cout << "\nIncrement: " << increment << std::endl;
-				std::cout << "centeredTargetX: " << leftTracker.centeredTargetX << std::endl;
-				std::cout << "fixed target y: " << leftTracker.targetY << std::endl;
-				std::cout << "bottom target angle: " << leftTracker.bottomTargetAngle << std::endl;
-				std::cout << "Target angle: " << leftTracker.targetAngle << std::endl;
+				std::cout << "centeredTargetX: " << targetTracker.centeredTargetX << std::endl;
+				std::cout << "fixed target y: " << targetTracker.targetY << std::endl;
+				std::cout << "bottom target angle: " << targetTracker.bottomTargetAngle << std::endl;
+				std::cout << "Target angle: " << targetTracker.targetAngle << std::endl;
 			}
 
-			if (leftTracker.targetsFound == 2)
+			if (targetTracker.targetsFound == 2)
 			{
 				//TODO: Adapt these into existing or new functions
 				bool production = false;
@@ -1026,7 +1028,7 @@ int main(int argc, char *argv[])
 				}
 
 				//Y-pos
-				double pixel = leftTracker.targetY - (OPENCV_WIDTH / 2); // pixels
+				double pixel = targetTracker.targetY - (OPENCV_WIDTH / 2); // pixels
 				double fpix = (OPENCV_WIDTH / 2) / tan(camView / 2);		 // pixels
 				double fdot = fpix * fpix;								 // pixels^2
 				double normpix = sqrt(fpix * fpix + pixel * pixel);		 // pixels
@@ -1043,7 +1045,7 @@ int main(int argc, char *argv[])
 				}
 
 				//X-pos
-				double pixel_x = leftTracker.targetX - (OPENCV_HEIGHT / 2);
+				double pixel_x = targetTracker.targetX - (OPENCV_HEIGHT / 2);
 				double fpix_x = (OPENCV_HEIGHT / 2) / tan(camView_x / 2);
 				double fdot_x = fpix_x * fpix_x;
 				double normpix_x = sqrt(fpix_x * fpix_x + pixel_x * pixel_x);
@@ -1054,7 +1056,7 @@ int main(int argc, char *argv[])
 				angleToTarget = (anglepix_x) * (180.0 / CV_PI) - camHorizAngle;
 
 				//Old console outputs
-				//std::cout << "xxxtargetY" << leftTracker.targetY << std::endl;
+				//std::cout << "xxxtargetY" << targetTracker.targetY << std::endl;
 				// std::cout << "xxxpixel" << pixel << std::endl;
 				//std::cout << "xxxanglepix" << anglepix_x*(180/CV_PI) << std::endl;
 				// std::cout << "xxxcamangle" << camAngle << std::endl;
@@ -1068,12 +1070,12 @@ int main(int argc, char *argv[])
 			//t5 = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
 			if (!debug) 
 			{
-				myNetTable->PutNumber("Left targetX", leftTracker.centeredTargetX);
-				myNetTable->PutNumber("Left targetY", leftTracker.centeredTargetY);
-				myNetTable->PutNumber("Left targetsFound", leftTracker.targetsFound);
-				myNetTable->PutBoolean("Left hasLeft", leftTracker.hasLeft);
-				myNetTable->PutBoolean("Left hasRight", leftTracker.hasRight);
-				myNetTable->PutNumber("Left Angle to Target", leftTracker.targetAngle);
+				myNetTable->PutNumber("Left targetX", targetTracker.centeredTargetX);
+				myNetTable->PutNumber("Left targetY", targetTracker.centeredTargetY);
+				myNetTable->PutNumber("Left targetsFound", targetTracker.targetsFound);
+				myNetTable->PutBoolean("Left hasLeft", targetTracker.hasLeft);
+				myNetTable->PutBoolean("Left hasRight", targetTracker.hasRight);
+				myNetTable->PutNumber("Left Angle to Target", targetTracker.targetAngle);
 
 				myNetTable->PutNumber("Distance", distance);
 				myNetTable->PutNumber("DistanceHigh", distanceHigh);
@@ -1103,7 +1105,7 @@ int main(int argc, char *argv[])
 			default:
 				cv::resize(frontImg, temp, cv::Size(ROI1.width, ROI1.height));
 				temp.copyTo(combine(ROI1));
-				cv::resize(leftTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
+				cv::resize(targetTracker.output, temp, cv::Size(ROI2.width, ROI2.height));
 				temp.copyTo(combine(ROI2));
 				break;
 			}*/
@@ -1111,8 +1113,8 @@ int main(int argc, char *argv[])
 			if (showOutputWindow)
 			{
 				//cv::imshow("Output", combine);
-				cv::imshow("Output", leftTracker.output);
-				cv::imshow("Output2", leftTracker.output);
+				cv::imshow("Output", targetTracker.output);
+				cv::imshow("Output2", targetTracker.output);
 			}
 
 			//IplImage outImage = (IplImage)combine;
@@ -1133,14 +1135,13 @@ int main(int argc, char *argv[])
 					char src_file_name[100];
 
 					sprintf(file_name, "/3314/images/match%d_%d_%lld.jpg", matchNumber, timeRemaining, increment);
-					cv::imwrite(file_name, leftTracker.output, compression_params);
+					cv::imwrite(file_name, targetTracker.output, compression_params);
 					sprintf(src_file_name, "/3314/images/SRC_match%d_%d_%lld.jpg", matchNumber, timeRemaining, increment);
-					cv::imwrite(src_file_name, leftTracker.source, compression_params);
+					cv::imwrite(src_file_name, targetTracker.source, compression_params);
 				}
 			}
 			increment++;
 			cv::waitKey(1);
 		}
 	}
-	//cv::waitKey();
 }
