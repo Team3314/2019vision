@@ -2,7 +2,7 @@
 #ifndef CAMERA_INFO_HPP
 #define CAMERA_INFO_HPP
 
-#include <string.h>
+#include <string>
 
 class CameraInfo
 {
@@ -28,7 +28,7 @@ class CameraInfo
 
     public: 
     CameraInfo();
-    virtual std::string GetPipeline();
+    virtual std::string GetPipeline() { return ""; };
 
 };
 

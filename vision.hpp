@@ -46,6 +46,6 @@ const cv::Scalar RED(0, 0, 255);
 const cv::Scalar PINK(255, 0, 255);
 const cv::Scalar YELLOW(0, 255, 255);
 const cv::Scalar GREEN(0, 255, 0);
-const cv::Scalar CYAN(255,255,0);
+const cv::Scalar CYAN(255, 255, 0);
 
 #endif

@@ -1,21 +1,38 @@
 #ifndef RPV2_CAMERA_INFO_HPP
 #define RPV2_CAMERA_INFO_HPP
 
-#include <string.h>
+#include <string>
+#include "CameraInfo.hpp"
 
-class RPV2CameraInfo : Public CameraInfo
+
+class RPV2CameraInfo : public CameraInfo
 {
-    public: 
-    RPV2CameraInfo(width, height, framerate,
-        horizView, vertView, horizAngle, vertAngle,
-        minGain, maxGain, minIspGain, maxIspGain,
-    	minExposure, maxExposure)
-        : CameraInfo(), RawWidth(width), RawHeight(height), Framerate(framerate),
-          Transpose(true), Flipmode(1), ImageWidth(height), ImageHeight(width),
-          HorizViewAngle(horizView), VertViewAngle(vertView), HorizMountAngle(horizAngle), VertMountAngle(vertAngle),
-          MinGain(minGain), MaxGain(maxGain), MinIspGain(minIspGain), MaxIspGain(maxIspGain), MinExposure(minExposure), MaxExposure(maxExposure),
-		  WarmupDelay(0)
-          ;
+	public:
+    RPV2CameraInfo(int width, int height, int framerate,
+        int horizView, int vertView, int horizAngle, int vertAngle,
+        int minGain, int maxGain, int minIspGain, int maxIspGain,
+    	long minExposure, long maxExposure)
+        : CameraInfo()
+	{ 
+		RawWidth=width;
+		RawHeight=height; 
+		Framerate=framerate;
+        Transpose=true; 
+		FlipMode=1; 
+		ImageWidth=height; 
+		ImageHeight=width;
+        HorizViewAngle=horizView; 
+		VertViewAngle=vertView; 
+		HorizMountAngle=horizAngle; 
+		VertMountAngle=vertAngle;
+        MinGain=minGain; 
+		MaxGain=maxGain; 
+		MinIspGain=minIspGain; 
+		MaxIspGain=maxIspGain; 
+		MinExposure=minExposure; 
+		MaxExposure=maxExposure;
+		WarmupDelay=0;
+	};
 
     std::string GetPipeline()
     {

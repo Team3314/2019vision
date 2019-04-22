@@ -12,7 +12,7 @@ add_executable (vizside vision_sideways.cpp vision.hpp cap_gstreamer.cpp cap_gst
 
 add_executable (vizsingle vision_single.cpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
 
-add_executable (viznano vision_nano.cpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
+add_executable (viznano vision_nano.cpp CameraInfo.cpp CameraInfo.hpp Goal2019.cpp Goal2019.hpp TargetTracker.cpp TargetTracker.hpp TargetTracker2019.hpp RPV2CameraInfo.hpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
 
 find_library(LibNT ntcore "/3314/ntcore/")
 

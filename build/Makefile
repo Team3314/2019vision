@@ -149,6 +149,87 @@ vizsingle/fast:
 	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/build
 .PHONY : vizsingle/fast
 
+CameraInfo.o: CameraInfo.cpp.o
+
+.PHONY : CameraInfo.o
+
+# target to build an object file
+CameraInfo.cpp.o:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/CameraInfo.cpp.o
+.PHONY : CameraInfo.cpp.o
+
+CameraInfo.i: CameraInfo.cpp.i
+
+.PHONY : CameraInfo.i
+
+# target to preprocess a source file
+CameraInfo.cpp.i:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/CameraInfo.cpp.i
+.PHONY : CameraInfo.cpp.i
+
+CameraInfo.s: CameraInfo.cpp.s
+
+.PHONY : CameraInfo.s
+
+# target to generate assembly for a file
+CameraInfo.cpp.s:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/CameraInfo.cpp.s
+.PHONY : CameraInfo.cpp.s
+
+Goal2019.o: Goal2019.cpp.o
+
+.PHONY : Goal2019.o
+
+# target to build an object file
+Goal2019.cpp.o:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/Goal2019.cpp.o
+.PHONY : Goal2019.cpp.o
+
+Goal2019.i: Goal2019.cpp.i
+
+.PHONY : Goal2019.i
+
+# target to preprocess a source file
+Goal2019.cpp.i:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/Goal2019.cpp.i
+.PHONY : Goal2019.cpp.i
+
+Goal2019.s: Goal2019.cpp.s
+
+.PHONY : Goal2019.s
+
+# target to generate assembly for a file
+Goal2019.cpp.s:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/Goal2019.cpp.s
+.PHONY : Goal2019.cpp.s
+
+TargetTracker.o: TargetTracker.cpp.o
+
+.PHONY : TargetTracker.o
+
+# target to build an object file
+TargetTracker.cpp.o:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/TargetTracker.cpp.o
+.PHONY : TargetTracker.cpp.o
+
+TargetTracker.i: TargetTracker.cpp.i
+
+.PHONY : TargetTracker.i
+
+# target to preprocess a source file
+TargetTracker.cpp.i:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/TargetTracker.cpp.i
+.PHONY : TargetTracker.cpp.i
+
+TargetTracker.s: TargetTracker.cpp.s
+
+.PHONY : TargetTracker.s
+
+# target to generate assembly for a file
+TargetTracker.cpp.s:
+	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/TargetTracker.cpp.s
+.PHONY : TargetTracker.cpp.s
+
 cap_gstreamer.o: cap_gstreamer.cpp.o
 
 .PHONY : cap_gstreamer.o
@@ -274,6 +355,15 @@ help:
 	@echo "... vizside"
 	@echo "... edit_cache"
 	@echo "... vizsingle"
+	@echo "... CameraInfo.o"
+	@echo "... CameraInfo.i"
+	@echo "... CameraInfo.s"
+	@echo "... Goal2019.o"
+	@echo "... Goal2019.i"
+	@echo "... Goal2019.s"
+	@echo "... TargetTracker.o"
+	@echo "... TargetTracker.i"
+	@echo "... TargetTracker.s"
 	@echo "... cap_gstreamer.o"
 	@echo "... cap_gstreamer.i"
 	@echo "... cap_gstreamer.s"
