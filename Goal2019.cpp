@@ -1,4 +1,5 @@
 #include "Goal2019.hpp"
+#include "TargetTracker.hpp"
 
 	Goal2019::Goal2019(std::vector<cv::Point> Contour)
 	{
@@ -13,12 +14,6 @@
 
 		rHeight = cv::norm(TargetTracker::findLongEdge(pts));
 		rWidth = cv::norm(TargetTracker::findShortEdge(pts));
-
-		/*angle = rrectAnglePts(pts);
-		offset = rrectAngleOffset(angle);
-
-		rHeight = cv::norm(pts[1] - pts[0]);
-		rWidth = cv::norm(pts[2] - pts[1]);*/
 
 		rArea = rWidth * rHeight;
 		rRatio = rWidth / rHeight;

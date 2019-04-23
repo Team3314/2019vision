@@ -7,21 +7,29 @@ TargetTracker::TargetTracker(CameraInfo *camInfo, bool Verbose)
 {
 	this->camInfo = camInfo;
 	verbose = Verbose;
-	//minHSV = MinHSV;
-	//maxHSV = MaxHSV;
 }
 
 void TargetTracker::capture()
 {
+	double ta, tb, tc;
+
 	frame++;
 
-	double ta = (double)cv::getTickCount();
-	input.read(source);
-	double tb = (double)cv::getTickCount();
-	if (verbose)
-		std::cout << "\n**** CAPTURE time ****:" << (tb - ta) / cv::getTickFrequency() << std::endl;
+	if (verbose) 
+	{
+		std::cout << "\nCapturing..." << std::endl;
+		ta = (double)cv::getTickCount();
+	}
 
-	tb = (double)cv::getTickCount();
+	input.read(source);
+	
+	if (verbose) 
+	{
+		tb = (double)cv::getTickCount();
+		std::cout << "\n**** CAPTURE time ****:" << (tb - ta) / cv::getTickFrequency() << std::endl;
+		tb = (double)cv::getTickCount();
+	}
+	
 	if (camInfo->Transpose)
 	{
 		cv::transpose(source, source);
@@ -30,9 +38,12 @@ void TargetTracker::capture()
 	{
 		cv::flip(source, source, camInfo->FlipMode);
 	}
-	double tc = (double)cv::getTickCount();
+
 	if (verbose)
+	{
+		tc = (double)cv::getTickCount();
 		std::cout << "\n**** transpose/flip time ****:" << (tc - tb) / cv::getTickFrequency() << std::endl;
+	}
 }
 
 void TargetTracker::analyze(){};
@@ -40,17 +51,23 @@ void TargetTracker::analyze(){};
 double TargetTracker::angleFromPixels(double ctx)
 {
 	// Compute focal length in pixels from FOV
-	double f = (0.5 * camInfo->ImageWidth) / tan(0.5 * FOV_RADIANS);
+	double f = (0.5 * camInfo->ImageWidth) / tan(0.5 * camInfo->HorizViewAngle);
 
 	// Vectors subtending image center and pixel from optical center
 	// in camera coordinates.
-	cv::Point3f center(0, 0, f), pixel(ctx, 0, f);
+	// center(0, 0, f) is not needed 
+	// it can be reduced to f in every use
+	//cv::Point3f center(0, 0, f), pixel(ctx, 0, f);
+	cv::Point3f  pixel(ctx, 0, f);
 
 	// angle between vector (0, 0, f) and pixel
 	//double dot = center.x*pixel.x + center.y*pixel.y + center.z*pixel.z;
-	double dot = f * f;
+	// Optimize dot out
+	//double dot = f * f;
 
-	double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel)))) * (180 / CV_PI);
+	// cv::norm(center) will always be equal to f 
+	//double alpha = (acos(dot / (cv::norm(center) * cv::norm(pixel)))) * (180 / CV_PI);
+	double alpha = (acos((f*f) / (f * cv::norm(pixel)))) * (180 / CV_PI);
 
 	// The dot product will always return a cos>0
 	// when the vectors are pointing in the same general

@@ -12,7 +12,7 @@ add_executable (vizside vision_sideways.cpp vision.hpp cap_gstreamer.cpp cap_gst
 
 add_executable (vizsingle vision_single.cpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
 
-add_executable (viznano vision_nano.cpp CameraInfo.cpp CameraInfo.hpp Goal2019.cpp Goal2019.hpp TargetTracker.cpp TargetTracker.hpp TargetTracker2019.hpp RPV2CameraInfo.hpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
+add_executable (viznano2019 vision_nano2019.cpp CameraInfo.cpp CameraInfo.hpp Goal2019.cpp Goal2019.hpp TargetTracker.cpp TargetTracker.hpp TargetTracker2019.cpp TargetTracker2019.hpp RPV2CameraInfo.hpp cap_gstreamer.cpp cap_gstreamer.hpp cvconfig.h precomp.hpp)
 
 find_library(LibNT ntcore "/3314/ntcore/")
 
@@ -22,4 +22,4 @@ target_link_libraries(vizside ${OpenCV_LIBS} ${LibNT} "/usr/lib/aarch64-linux-gn
 
 target_link_libraries(vizsingle ${OpenCV_LIBS} ${LibNT} "/usr/lib/aarch64-linux-gnu/libgstreamer-1.0.so" "/usr/lib/aarch64-linux-gnu/libgobject-2.0.so" "/usr/lib/aarch64-linux-gnu/libglib-2.0.so" "/usr/lib/aarch64-linux-gnu/libgstapp-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstriff-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstbase-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstvideo-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstpbutils-1.0.so")
 
-target_link_libraries(viznano ${OpenCV_LIBS} ${LibNT} "/usr/lib/aarch64-linux-gnu/libgstreamer-1.0.so" "/usr/lib/aarch64-linux-gnu/libgobject-2.0.so" "/usr/lib/aarch64-linux-gnu/libglib-2.0.so" "/usr/lib/aarch64-linux-gnu/libgstapp-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstriff-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstbase-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstvideo-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstpbutils-1.0.so")
+target_link_libraries(viznano2019 ${OpenCV_LIBS} ${LibNT} "/usr/lib/aarch64-linux-gnu/libgstreamer-1.0.so" "/usr/lib/aarch64-linux-gnu/libgobject-2.0.so" "/usr/lib/aarch64-linux-gnu/libglib-2.0.so" "/usr/lib/aarch64-linux-gnu/libgstapp-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstriff-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstbase-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstvideo-1.0.so" "/usr/lib/aarch64-linux-gnu/libgstpbutils-1.0.so")

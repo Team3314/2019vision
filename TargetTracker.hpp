@@ -5,6 +5,7 @@
 
 #include <string>
 #include "CameraInfo.hpp"
+#include "Goal2019.hpp"
 
 class TargetTracker
 {

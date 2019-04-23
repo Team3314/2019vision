@@ -3,22 +3,25 @@
 #include "TargetTracker2019.hpp"
 #include "Goal2019.hpp"
 
+bool ProcessCmdLineArgs(int argc, char *argv[]);
+
+bool robot = true;
+bool debug = false;
+bool verbose = false;
+bool showOutputWindow = false;
+std::string ntIP = "10.33.14.2";
+std::string streamIP = "10.33.14.5";
+double lastGoodDistance = -1;
+cv::Scalar minHueSatVal(65, 0, 100);
+cv::Scalar maxHueSatVal(100, 245, 234);
+RPV2CameraInfo camInfo(1280, 720, 30, 1280, 720, 62.2, 48.8, 0, 0, 1, 1, 1, 1, 36000000, 36000000);
+
 int main(int argc, char *argv[])
 {
 	//TODO: Overhaul script parameters to account for new camera setup and differentiating production/practice
 	//Default to production mode
-	bool robot = true;
-	bool debug = false;
-	bool verbose = false;
-	bool showOutputWindow = false;
-	std::string ntIP = "10.33.14.2";
-	std::string streamIP = "10.33.14.5";
-	double lastGoodDistance = -1;
-	cv::Scalar minHueSatVal(65, 0, 100);
-	cv::Scalar maxHueSatVal(100, 245, 234);
 
-	RPV2CameraInfo camInfo(640, 480, 30, 62.2, 48.8, 0, 0, 1, 1, 1, 1, 36000000, 36000000);
-	ProcessCmdLineArgs(arcg, argv);
+	ProcessCmdLineArgs(argc, argv);
 
 	//Always console output
 	std::cout << "ntIP: " << ntIP << "  streamIP: " << streamIP << std::endl;
@@ -178,15 +181,16 @@ int main(int argc, char *argv[])
 					cv::imwrite(src_file_name, targetTracker.source, compression_params);
 				}
 			}
-
-			increment++;
-			cv::waitKey(1);
 		}
+		increment++;
+		cv::waitKey(1);
 	}
 }
 
-void ProcessCmdLineArgs(int argc, char *argv[])
+bool ProcessCmdLineArgs(int argc, char *argv[])
 {
+	bool res = false;
+
 	std::vector<std::string> args(argv, argv + argc);
 	for (size_t i = 1; i < args.size(); ++i)
 	{
@@ -203,7 +207,7 @@ void ProcessCmdLineArgs(int argc, char *argv[])
 			std::cout << "minhsv <int> <int> <int> - min hue sat val override" << std::endl;
 			std::cout << "maxhsv <int> <int> <int> - max hue sat val override\n"
 					  << std::endl;
-			return 0;
+			res = true;
 		}
 		if (args[i] == "dev")
 		{
@@ -270,6 +274,7 @@ void ProcessCmdLineArgs(int argc, char *argv[])
 			maxHueSatVal = cv::Scalar(stoi(args[i + 1]), stoi(args[i + 2]), stoi(args[i + 3]));
 		}
 	}
+	return res;
 }
 
 //Utilities...

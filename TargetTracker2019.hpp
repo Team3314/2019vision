@@ -7,7 +7,6 @@
 #include "TargetTracker.hpp"
 #include "Goal2019.hpp"
 
-
 class TargetTracker2019 : public TargetTracker
 {
   public:
@@ -32,6 +31,11 @@ class TargetTracker2019 : public TargetTracker
     bool hasLeft = false;
     bool hasRight = false;
 
+  private:
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<Goal2019> possible, best;
+
+  public:
     TargetTracker2019(CameraInfo *camInfo, bool Verbose, cv::Scalar MinHSV, cv::Scalar MaxHSV)
         : TargetTracker(camInfo, Verbose)
 
@@ -39,5 +43,8 @@ class TargetTracker2019 : public TargetTracker
         minHSV = MinHSV;
         maxHSV = MaxHSV;
     }
+
+    void analyze();
+    bool MergeTargets();
 };
 #endif

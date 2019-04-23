@@ -261,7 +261,7 @@ class TargetTracker
 	bool hasRight = false;
 
 	TargetTracker(int Device, double BaseOffset, double Multiplier, bool Verbose, cv::Scalar MinHSV, cv::Scalar MaxHSV)
-		: input(Device)
+		: input("nvarguscamerasrc wbmode=0 awblock=true gainrange=\"1 1\" ispdigitalgainrange=\"1 1\" exposuretimerange=\"36000000 36000000\" aelock=true ! video/x-raw(memory:NVMM), format=(string)NV12, width=(int)640, height=(int)480, framerate=(fraction)30/1 ! nvvidconv ! video/x-raw,format=(string)BGRx ! videoconvert ! video/x-raw,format=(string)BGR ! appsink",cv::CAP_GSTREAMER)
 	{
 		double exposure = 20;
 		double brightness = 100;

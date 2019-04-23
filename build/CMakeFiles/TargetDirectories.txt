@@ -1,5 +1,5 @@
 /3314/src/build/CMakeFiles/rebuild_cache.dir
-/3314/src/build/CMakeFiles/viznano.dir
+/3314/src/build/CMakeFiles/viznano2019.dir
 /3314/src/build/CMakeFiles/vizside.dir
 /3314/src/build/CMakeFiles/edit_cache.dir
 /3314/src/build/CMakeFiles/vizsingle.dir

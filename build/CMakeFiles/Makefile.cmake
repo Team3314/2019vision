@@ -48,7 +48,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/viznano.dir/DependInfo.cmake"
+  "CMakeFiles/viznano2019.dir/DependInfo.cmake"
   "CMakeFiles/vizside.dir/DependInfo.cmake"
   "CMakeFiles/vizsingle.dir/DependInfo.cmake"
   )

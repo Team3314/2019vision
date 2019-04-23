@@ -111,17 +111,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named viznano
+# Target rules for targets named viznano2019
 
 # Build rule for target.
-viznano: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 viznano
-.PHONY : viznano
+viznano2019: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 viznano2019
+.PHONY : viznano2019
 
 # fast build rule for target.
-viznano/fast:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/build
-.PHONY : viznano/fast
+viznano2019/fast:
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/build
+.PHONY : viznano2019/fast
 
 #=============================================================================
 # Target rules for targets named vizside
@@ -155,7 +155,7 @@ CameraInfo.o: CameraInfo.cpp.o
 
 # target to build an object file
 CameraInfo.cpp.o:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/CameraInfo.cpp.o
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/CameraInfo.cpp.o
 .PHONY : CameraInfo.cpp.o
 
 CameraInfo.i: CameraInfo.cpp.i
@@ -164,7 +164,7 @@ CameraInfo.i: CameraInfo.cpp.i
 
 # target to preprocess a source file
 CameraInfo.cpp.i:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/CameraInfo.cpp.i
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/CameraInfo.cpp.i
 .PHONY : CameraInfo.cpp.i
 
 CameraInfo.s: CameraInfo.cpp.s
@@ -173,7 +173,7 @@ CameraInfo.s: CameraInfo.cpp.s
 
 # target to generate assembly for a file
 CameraInfo.cpp.s:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/CameraInfo.cpp.s
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/CameraInfo.cpp.s
 .PHONY : CameraInfo.cpp.s
 
 Goal2019.o: Goal2019.cpp.o
@@ -182,7 +182,7 @@ Goal2019.o: Goal2019.cpp.o
 
 # target to build an object file
 Goal2019.cpp.o:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/Goal2019.cpp.o
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/Goal2019.cpp.o
 .PHONY : Goal2019.cpp.o
 
 Goal2019.i: Goal2019.cpp.i
@@ -191,7 +191,7 @@ Goal2019.i: Goal2019.cpp.i
 
 # target to preprocess a source file
 Goal2019.cpp.i:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/Goal2019.cpp.i
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/Goal2019.cpp.i
 .PHONY : Goal2019.cpp.i
 
 Goal2019.s: Goal2019.cpp.s
@@ -200,7 +200,7 @@ Goal2019.s: Goal2019.cpp.s
 
 # target to generate assembly for a file
 Goal2019.cpp.s:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/Goal2019.cpp.s
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/Goal2019.cpp.s
 .PHONY : Goal2019.cpp.s
 
 TargetTracker.o: TargetTracker.cpp.o
@@ -209,7 +209,7 @@ TargetTracker.o: TargetTracker.cpp.o
 
 # target to build an object file
 TargetTracker.cpp.o:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/TargetTracker.cpp.o
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/TargetTracker.cpp.o
 .PHONY : TargetTracker.cpp.o
 
 TargetTracker.i: TargetTracker.cpp.i
@@ -218,7 +218,7 @@ TargetTracker.i: TargetTracker.cpp.i
 
 # target to preprocess a source file
 TargetTracker.cpp.i:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/TargetTracker.cpp.i
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/TargetTracker.cpp.i
 .PHONY : TargetTracker.cpp.i
 
 TargetTracker.s: TargetTracker.cpp.s
@@ -227,8 +227,35 @@ TargetTracker.s: TargetTracker.cpp.s
 
 # target to generate assembly for a file
 TargetTracker.cpp.s:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/TargetTracker.cpp.s
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/TargetTracker.cpp.s
 .PHONY : TargetTracker.cpp.s
+
+TargetTracker2019.o: TargetTracker2019.cpp.o
+
+.PHONY : TargetTracker2019.o
+
+# target to build an object file
+TargetTracker2019.cpp.o:
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/TargetTracker2019.cpp.o
+.PHONY : TargetTracker2019.cpp.o
+
+TargetTracker2019.i: TargetTracker2019.cpp.i
+
+.PHONY : TargetTracker2019.i
+
+# target to preprocess a source file
+TargetTracker2019.cpp.i:
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/TargetTracker2019.cpp.i
+.PHONY : TargetTracker2019.cpp.i
+
+TargetTracker2019.s: TargetTracker2019.cpp.s
+
+.PHONY : TargetTracker2019.s
+
+# target to generate assembly for a file
+TargetTracker2019.cpp.s:
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/TargetTracker2019.cpp.s
+.PHONY : TargetTracker2019.cpp.s
 
 cap_gstreamer.o: cap_gstreamer.cpp.o
 
@@ -236,7 +263,7 @@ cap_gstreamer.o: cap_gstreamer.cpp.o
 
 # target to build an object file
 cap_gstreamer.cpp.o:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/cap_gstreamer.cpp.o
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/cap_gstreamer.cpp.o
 	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/cap_gstreamer.cpp.o
 	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/cap_gstreamer.cpp.o
 .PHONY : cap_gstreamer.cpp.o
@@ -247,7 +274,7 @@ cap_gstreamer.i: cap_gstreamer.cpp.i
 
 # target to preprocess a source file
 cap_gstreamer.cpp.i:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/cap_gstreamer.cpp.i
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/cap_gstreamer.cpp.i
 	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/cap_gstreamer.cpp.i
 	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/cap_gstreamer.cpp.i
 .PHONY : cap_gstreamer.cpp.i
@@ -258,37 +285,37 @@ cap_gstreamer.s: cap_gstreamer.cpp.s
 
 # target to generate assembly for a file
 cap_gstreamer.cpp.s:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/cap_gstreamer.cpp.s
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/cap_gstreamer.cpp.s
 	$(MAKE) -f CMakeFiles/vizside.dir/build.make CMakeFiles/vizside.dir/cap_gstreamer.cpp.s
 	$(MAKE) -f CMakeFiles/vizsingle.dir/build.make CMakeFiles/vizsingle.dir/cap_gstreamer.cpp.s
 .PHONY : cap_gstreamer.cpp.s
 
-vision_nano.o: vision_nano.cpp.o
+vision_nano2019.o: vision_nano2019.cpp.o
 
-.PHONY : vision_nano.o
+.PHONY : vision_nano2019.o
 
 # target to build an object file
-vision_nano.cpp.o:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/vision_nano.cpp.o
-.PHONY : vision_nano.cpp.o
+vision_nano2019.cpp.o:
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/vision_nano2019.cpp.o
+.PHONY : vision_nano2019.cpp.o
 
-vision_nano.i: vision_nano.cpp.i
+vision_nano2019.i: vision_nano2019.cpp.i
 
-.PHONY : vision_nano.i
+.PHONY : vision_nano2019.i
 
 # target to preprocess a source file
-vision_nano.cpp.i:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/vision_nano.cpp.i
-.PHONY : vision_nano.cpp.i
+vision_nano2019.cpp.i:
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/vision_nano2019.cpp.i
+.PHONY : vision_nano2019.cpp.i
 
-vision_nano.s: vision_nano.cpp.s
+vision_nano2019.s: vision_nano2019.cpp.s
 
-.PHONY : vision_nano.s
+.PHONY : vision_nano2019.s
 
 # target to generate assembly for a file
-vision_nano.cpp.s:
-	$(MAKE) -f CMakeFiles/viznano.dir/build.make CMakeFiles/viznano.dir/vision_nano.cpp.s
-.PHONY : vision_nano.cpp.s
+vision_nano2019.cpp.s:
+	$(MAKE) -f CMakeFiles/viznano2019.dir/build.make CMakeFiles/viznano2019.dir/vision_nano2019.cpp.s
+.PHONY : vision_nano2019.cpp.s
 
 vision_sideways.o: vision_sideways.cpp.o
 
@@ -351,7 +378,7 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... rebuild_cache"
-	@echo "... viznano"
+	@echo "... viznano2019"
 	@echo "... vizside"
 	@echo "... edit_cache"
 	@echo "... vizsingle"
@@ -364,12 +391,15 @@ help:
 	@echo "... TargetTracker.o"
 	@echo "... TargetTracker.i"
 	@echo "... TargetTracker.s"
+	@echo "... TargetTracker2019.o"
+	@echo "... TargetTracker2019.i"
+	@echo "... TargetTracker2019.s"
 	@echo "... cap_gstreamer.o"
 	@echo "... cap_gstreamer.i"
 	@echo "... cap_gstreamer.s"
-	@echo "... vision_nano.o"
-	@echo "... vision_nano.i"
-	@echo "... vision_nano.s"
+	@echo "... vision_nano2019.o"
+	@echo "... vision_nano2019.i"
+	@echo "... vision_nano2019.s"
 	@echo "... vision_sideways.o"
 	@echo "... vision_sideways.i"
 	@echo "... vision_sideways.s"
