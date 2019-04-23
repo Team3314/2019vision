@@ -280,9 +280,9 @@ void TargetTracker2019::analyze()
 			//targetY = (rightCenter.y + leftCenter.y) / 2;
 			targetY = camInfo->ImageWidth - ((best[0].pts[2].y + best[1].pts[2].y) / 2);
 			lastGoodLRSeparation = (rightCenter.x - leftCenter.x) / 2;
-			leftTargetAngle = angleFromRawPixels(leftCenter.x) + camInfo->HorizMountAngle;
-			rightTargetAngle = angleFromRawPixels(rightCenter.x) + camInfo->HorizMountAngle;
-			bottomTargetAngle = angleFromRawPixels(targetY);
+			leftTargetAngle = TargetTracker2019::angleFromRawPixels(leftCenter.x, camInfo->ImageWidth, camInfo->HorizViewAngle) + camInfo->HorizMountAngle;
+			rightTargetAngle = TargetTracker2019::angleFromRawPixels(rightCenter.x, camInfo->ImageWidth, camInfo->HorizViewAngle) + camInfo->HorizMountAngle;
+			bottomTargetAngle = TargetTracker2019::angleFromRawPixels(targetY, camInfo->ImageHeight, camInfo->VertViewAngle);
 			targetsFound = 2;
 			hasLeft = true, hasRight = true;
 		}
@@ -291,14 +291,14 @@ void TargetTracker2019::analyze()
 			if (rightCenter.x != 0)
 			{
 				targetX = rightCenter.x - lastGoodLRSeparation;
-				rightTargetAngle = angleFromRawPixels(rightCenter.x) + camInfo->HorizMountAngle;
+				rightTargetAngle = TargetTracker2019::angleFromRawPixels(rightCenter.x, camInfo->ImageWidth, camInfo->HorizViewAngle) + camInfo->HorizMountAngle;
 				targetsFound = 1;
 				hasRight = true;
 			}
 			if (leftCenter.x != 0)
 			{
 				targetX = leftCenter.x + lastGoodLRSeparation;
-				leftTargetAngle = angleFromRawPixels(leftCenter.x) + camInfo->HorizMountAngle;
+				leftTargetAngle = TargetTracker2019::angleFromRawPixels(leftCenter.x, camInfo->ImageWidth, camInfo->HorizViewAngle) + camInfo->HorizMountAngle;
 				targetsFound = 1;
 				hasLeft = true;
 			}
@@ -317,7 +317,7 @@ void TargetTracker2019::analyze()
 
 	centeredTargetX = targetX - (camInfo->ImageWidth / 2);
 	centeredTargetY = -targetY + (camInfo->ImageHeight / 2);
-	targetAngle = angleFromPixels(centeredTargetX) + camInfo->HorizMountAngle;
+	targetAngle = TargetTracker2019::angleFromPixels(centeredTargetX, camInfo->ImageWidth, camInfo->HorizViewAngle) + camInfo->HorizMountAngle;
 }
 
 bool TargetTracker2019::MergeTargets()

@@ -48,10 +48,10 @@ void TargetTracker::capture()
 
 void TargetTracker::analyze(){};
 
-double TargetTracker::angleFromPixels(double ctx)
+double TargetTracker::angleFromPixels(double ctx, int pixelCount, double viewAngle)
 {
 	// Compute focal length in pixels from FOV
-	double f = (0.5 * camInfo->ImageWidth) / tan(0.5 * camInfo->HorizViewAngle);
+	double f = (0.5 * pixelCount) / tan(0.5 * viewAngle);
 
 	// Vectors subtending image center and pixel from optical center
 	// in camera coordinates.
@@ -79,9 +79,9 @@ double TargetTracker::angleFromPixels(double ctx)
 	return alpha;
 }
 
-double TargetTracker::angleFromRawPixels(double tx)
+double TargetTracker::angleFromRawPixels(double tx, int pixelCount, double viewAngle)
 {
-	return angleFromPixels(tx - (camInfo->ImageWidth / 2));
+	return angleFromPixels(tx - (pixelCount / 2), pixelCount, viewAngle);
 }
 
 cv::Point2f TargetTracker::findLongEdge(cv::Point2f pts[])

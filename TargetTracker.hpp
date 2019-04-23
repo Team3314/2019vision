@@ -22,8 +22,8 @@ public:
 	virtual void analyze();
 
 	// utility functions
-	double angleFromPixels(double ctx);
-	double angleFromRawPixels(double tx);
+	static double angleFromPixels(double ctx, int pixelCount, double viewAngle);
+	static double angleFromRawPixels(double tx, int pixelCount, double viewAngle);
 
 	// static utility functions
 	static cv::Point2f findLongEdge(cv::Point2f pts[]);
